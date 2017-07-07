@@ -27,6 +27,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -38,6 +39,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -112,14 +114,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private static final String IMAGE_DIR_NAME = "images";
 
     @Override
-    protected void onCreate(Bundle savedInstanceState)
-    {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_main);
 
         FloatingActionButton floatActionCamera = (FloatingActionButton) findViewById(R.id.menu_camera_option);
         FloatingActionButton floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
         final FloatingActionMenu floatingActionMenu = (FloatingActionMenu) findViewById(R.id.floating_action_menu);
+        RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
 /*
         floatingActionMenu.setMenuButtonColorNormal(R.color.colorAccent);
         floatingActionMenu.setMenuButtonColorPressed(R.color.colorAccent);*/
@@ -135,20 +137,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         try{
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-        }
-        catch (SecurityException e){
+        } catch (SecurityException e){
             Log.e("Location: ", e.getMessage());
-        }
-
-        if (SaveSharedPref.getToken(HomeActivity.this).length()==0)
-        {
+        } if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
             Intent intent = getIntent();
             name = intent.getStringExtra("name");
             email = intent.getStringExtra("email");
             photoUri = intent.getStringExtra("photoUri");
-        }
-        else
-        {
+        } else {
             name = SaveSharedPref.getUsername(getApplicationContext());
             email = SaveSharedPref.getEmail(getApplicationContext());
             photoUri = SaveSharedPref.getPhotoUri(getApplicationContext());
@@ -166,7 +162,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         txtUname.setText(name);
         txtEmail.setText(email);
         Glide.with(getApplicationContext()).load(photoUri).into(profilePic);
-        txt.append(" " + name);
+        txt.setText(" ");
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -191,12 +187,24 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             }
         });
 
+        Snackbar.make(findViewById(android.R.id.content), "Welcome" + name, Snackbar.LENGTH_LONG).show();
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.addDrawerListener(toggle);
         toggle.syncState();
+
+        relativeLayout.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (floatingActionMenu.isOpened()) {
+                    floatingActionMenu.close(true);
+                }
+
+                return true;
+            }
+        });
 
         nav.setNavigationItemSelectedListener(this);
         if (googleApiClient == null) {
@@ -210,8 +218,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
 
         googleApiClient.connect();
-
-
     }
 
     public void openImageChooser() {
