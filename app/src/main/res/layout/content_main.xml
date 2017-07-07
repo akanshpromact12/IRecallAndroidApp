@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    app:theme="@style/sample"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:fab="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/content_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:context="com.promact.akansh.irecall.MainActivity"
+    tools:showIn="@layout/app_bar_main">
+
+    <TextView
+        android:id="@+id/txtView1"
+        android:layout_width="match_parent"
+        android:text="@string/welcome_msg_content"
+        android:textSize="24sp"
+        android:textColor="@android:color/black"
+        android:layout_height="wrap_content"
+        android:textAlignment="center"
+        android:layout_alignParentStart="true"
+        android:elevation="10dp"/>
+
+    <com.github.clans.fab.FloatingActionMenu
+        android:id="@+id/floating_action_menu"
+        android:layout_width="match_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:paddingBottom="0dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        fab:fab_showShadow="true"
+        fab:menu_labels_showShadow="true"
+        fab:menu_labels_maxLines="-1"
+        fab:menu_labels_position="left"
+        fab:menu_openDirection="up"
+        fab:menu_labels_ellipsize="end"
+        fab:menu_labels_singleLine="true"
+        fab:menu_colorNormal="@color/colorAccent"
+        android:layout_height="wrap_content">
+
+        <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/menu_camera_option"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_photo_camera_black_24dp"
+            fab:fab_label="Take a photo"
+            fab:fab_size="mini" />
+
+        <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/menu_gallery_option"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_collections_black_24dp"
+            fab:fab_label="Select a photo from gallery"
+            fab:fab_size="mini" />
+
+    </com.github.clans.fab.FloatingActionMenu>
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textMultiLine"
+        android:ems="10"
+        android:id="@+id/txtCaption"
+        android:layout_marginBottom="93dp"
+        android:visibility="invisible"
+        android:layout_centerHorizontal="true" />
+
+</RelativeLayout>
