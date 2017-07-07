@@ -929,7 +929,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         Toast.makeText(HomeActivity.this,
                                 "File size shouldn't > 5 MB", Toast.LENGTH_SHORT).show();
                 } catch (Exception ex) {
-                    Log.e("Error in video upload", ex.getMessage());
+                    System.out.println("Error in video upload" + ex.getMessage());
                 }
 
                 if (outputStream != null) {
