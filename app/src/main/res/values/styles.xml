@@ -28,7 +28,7 @@
 
     <style name="sample" parent="Theme.AppCompat">
         <item name="fab_colorNormal">@color/colorAccent</item>
-        <item name="fab_colorPressed">@color/loginScreenDark</item>
+        <item name="fab_colorPressed">@color/colorAccent</item>
     </style>
 
     <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
