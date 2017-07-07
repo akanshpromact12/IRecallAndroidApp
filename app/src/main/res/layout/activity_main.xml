@@ -6,21 +6,13 @@
     android:background="@drawable/img_cover2"
     android:layout_height="match_parent">
 
-    <ImageView
-        android:id="@+id/logo"
-        android:src="@drawable/logo"
-        android:contentDescription="@string/img_content_desc"
-        android:layout_width="170dp"
-        android:layout_height="170dp"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true" />
-
     <TextView
         android:text="@string/welcome_message"
         android:layout_height="wrap_content"
         android:id="@+id/textView"
         android:layout_marginLeft="30dp"
         android:layout_marginRight="30dp"
+        android:layout_marginStart="20dp"
         android:textSize="16pt"
         android:textColor="@android:color/white"
         android:textAlignment="center"
@@ -40,5 +32,15 @@
         android:layout_marginBottom="55dp"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true" />
+
+    <ImageView
+        android:id="@+id/logo"
+        android:src="@drawable/ic_launcher"
+        android:contentDescription="@string/img_content_desc"
+        android:layout_width="170dp"
+        android:layout_height="170dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="34dp" />
 
 </RelativeLayout>

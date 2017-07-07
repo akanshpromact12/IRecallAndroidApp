@@ -48,16 +48,16 @@
             android:id="@+id/menu_camera_option"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_photo_camera_black_24dp"
-            fab:fab_label="Take a photo"
+            android:src="@drawable/ic_camera_alt_white_24dp"
+            fab:fab_label="Open camera"
             fab:fab_size="mini" />
 
         <com.github.clans.fab.FloatingActionButton
             android:id="@+id/menu_gallery_option"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_collections_black_24dp"
-            fab:fab_label="Select a photo from gallery"
+            android:src="@drawable/ic_collections_white_24dp"
+            fab:fab_label="Open gallery"
             fab:fab_size="mini" />
 
     </com.github.clans.fab.FloatingActionMenu>

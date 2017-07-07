@@ -8,9 +8,6 @@ import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.graphics.Matrix;
 import android.graphics.Typeface;
 import android.location.Location;
 import android.location.LocationListener;
@@ -20,15 +17,12 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Process;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.FileProvider;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -36,18 +30,15 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.VideoView;
 
 import com.bumptech.glide.Glide;
 import com.github.clans.fab.FloatingActionButton;
@@ -67,33 +58,32 @@ import com.google.android.gms.drive.OpenFileActivityBuilder;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class HomeActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener , LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
     static final int REQUEST_IMAGE_CAPTURE = 1;
     static final int REQUEST_VIDEO_CAPTURE = 2;
-    Uri videoUri;
-    String url;
-    String name;
-    String email;
-    String photoUri;
-    String videoUriStr;
-    TextView txt;
-    EditText caption;
+    private Uri videoUri;
+    private String url;
+    private String name;
+    private String email;
+    private String photoUri;
+    private String videoUriStr;
+    private TextView txt;
+    private EditText caption;
     double latitude;
     double longitude;
-    private static String imageFileName;
     private static String fileName;
     private static final int REQUEST_CODE_RESOLUTION = 1;
     private static final  int REQUEST_CODE_OPENER = 3;
     private static final int SELECT_PICTURE = 100;
     private static final int SELECT_VIDEO = 500;
-    GoogleApiClient googleApiClient;
+    private GoogleApiClient googleApiClient;
     private boolean fileOperation = false;
     private Uri selectedVideoUri;
     private Uri selectedImageUri;
@@ -104,12 +94,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private String img;
     private String pathVideoGallery;
     private String pathImgGallery;
-    private String pathImgNormal;
-    private String fullImgPath;
-    private Bitmap bitmap;
-    private Bitmap image;
     private static final int MEDIA_TYPE_VIDEO = 200;
-    private static final int MEDIA_TYPE_IMAGE = 300;
     private static final String VIDEO_DIR_NAME = "videoDir";
     private static final String IMAGE_DIR_NAME = "images";
 
@@ -122,16 +107,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         FloatingActionButton floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
         final FloatingActionMenu floatingActionMenu = (FloatingActionMenu) findViewById(R.id.floating_action_menu);
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
-/*
-        floatingActionMenu.setMenuButtonColorNormal(R.color.colorAccent);
-        floatingActionMenu.setMenuButtonColorPressed(R.color.colorAccent);*/
 
-        /*floatActionGallery.setColorNormal(Color.argb(1, 254, 81, 81));
-        floatActionGallery.setColorPressed(R.color.colorAccent);
-
-        floatActionCamera.setColorNormal(Color.argb(1, 254, 81, 81));
-        floatActionCamera.setColorPressed(R.color.colorAccent);
-*/
         txt = (TextView) findViewById(R.id.txtView1);
         caption = (EditText) findViewById(R.id.txtCaption);
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -154,6 +130,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         NavigationView nav = (NavigationView) findViewById(R.id.nav_view);
         View newView = nav.getHeaderView(0); //Gets the header view from the header page, where all the widgets are kept.
+        View viewSnackbar = findViewById(android.R.id.content);
 
         TextView txtUname = (TextView) newView.findViewById(R.id.usernm);
         TextView txtEmail = (TextView) newView.findViewById(R.id.emailNav);
@@ -170,7 +147,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         floatActionCamera.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view){
-                //Snackbar.make(view, "Selected camera option", Snackbar.LENGTH_LONG).setAction("Action Camera", null).show();
                 showAlertDialogBox();
 
                 floatingActionMenu.close(true);
@@ -180,14 +156,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         floatActionGallery.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view){
-                //Snackbar.make(view, "Selected gallery option", Snackbar.LENGTH_LONG).setAction("Action Gallery", null).show();
                 showGalleryDialog();
 
                 floatingActionMenu.close(true);
             }
         });
 
-        Snackbar.make(findViewById(android.R.id.content), "Welcome" + name, Snackbar.LENGTH_LONG).show();
+        Snackbar.make(viewSnackbar, "Welcome " + name, Snackbar.LENGTH_LONG).show();
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -263,7 +238,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     public void takingPicture(){
         Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
 
         if (pictureIntent.resolveActivity(getPackageManager()) != null){
             storage = new File(
@@ -271,9 +246,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     IMAGE_DIR_NAME);
 
             photoFile = new File(storage.getPath() + File.separator
-                    + "VID_" + System.currentTimeMillis() + ".jpg");
+                    + "VID_" + timeStamp + ".jpg");
             img = storage.getPath() + File.separator
-                    + "VID_" + System.currentTimeMillis() + ".jpg";
+                    + "VID_" + timeStamp + ".jpg";
             imageUri = Uri.fromFile(photoFile);
             uriPath = imageUri.getPath();
 
@@ -306,7 +281,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 } else if (options[item].equals("Select a Video")) {
                     openVideoChooser();
                 }
-                //Toast.makeText(HomeActivity.this, "selected option" + options[item].toString(), Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -338,7 +312,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                     dialog.cancel();
                 }
-                //Toast.makeText(HomeActivity.this, "selected option" + options[item].toString(), Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -359,21 +332,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         switch (requestCode) {
             case REQUEST_IMAGE_CAPTURE:
-                /*if (resultCode == RESULT_OK) {
-                    Bundle extras = data.getExtras();
-                    Bitmap imageBitmap =  (Bitmap)extras.get("data");
-*/
+                if (photoFile != null && resultCode == RESULT_OK) {
                     showPhotoDialog();
-              /*  } else {
-                    Toast.makeText(this, "No Result", Toast.LENGTH_SHORT).show();
-                }*/
+                }
                 break;
             case REQUEST_VIDEO_CAPTURE:
-                if (resultCode == RESULT_OK) {
+                if (fileName != null && resultCode == RESULT_OK) {
                     videoUri = data.getData();
-
                     showVideoDialog();
-
                 }
                 break;
             case REQUEST_CODE_OPENER:
@@ -381,23 +347,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     driveId = data.getParcelableExtra(
                             OpenFileActivityBuilder.EXTRA_RESPONSE_DRIVE_ID);
 
-                    url = "http://drive.google.com/open?id=" + driveId.getResourceId();
-                    Toast.makeText(this, "url: http://drive.google.com/open?id=" + driveId.getResourceId(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "File upload was successful", Toast.LENGTH_SHORT).show();
 
-                    System.out.println("url: http://drive.google.com/open?id=" + driveId.getResourceId());
-                    /*Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setData(Uri.parse(url));
-                    startActivity(intent);*/
+                    Log.e("url", "url: http://drive.google.com/open?id=" + driveId.getResourceId());
                 }
                 break;
             case SELECT_PICTURE:
-                selectedImageUri = data.getData();
-                if (selectedImageUri != null) {
-
+                if (data != null && resultCode == RESULT_OK) {
+                    selectedImageUri = data.getData();
                     try {
                         pathImgGallery = getPath(HomeActivity.this, selectedImageUri);
-
-                        System.out.println(pathImgGallery);
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
@@ -406,8 +365,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 }
                 break;
             case SELECT_VIDEO:
-                selectedVideoUri = data.getData();
-                if (selectedVideoUri != null) {
+                if (data != null && resultCode == RESULT_OK) {
+                    selectedVideoUri = data.getData();
                     try {
                         pathVideoGallery = getPath(HomeActivity.this, selectedVideoUri);
 
@@ -537,23 +496,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(HomeActivity.this, R.style.AppCompatAlertDialog);
         LayoutInflater layoutInflater = this.getLayoutInflater();
-        final View dialogView = layoutInflater.inflate(R.layout.video_layout, null);
+        final View dialogView = layoutInflater.inflate(R.layout.dialog_layout, null);
         dialogBuilder.setView(dialogView);
 
-        TextView title = new TextView(HomeActivity.this);
-        title.setText(R.string.imageDialogTitle);
-        title.setGravity(Gravity.CENTER);
-        title.setTextSize(25);
-        title.setBackgroundColor(Color.TRANSPARENT);
-        title.setTextColor(Color.BLACK);
-        RelativeLayout.LayoutParams rl = new RelativeLayout.LayoutParams
-                (ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rl.setMargins(0, 0, 0, 10);
-        title.setLayoutParams(rl);
-        dialogBuilder.setCustomTitle(title);
+        Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
+        final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
+        title.setTypeface(typeface);
+        title.setTextSize(24);
+        title.setText(R.string.videoDialogTitle);
 
-        //final EditText caption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
-        final ImageView videoView = (ImageView) dialogView.findViewById(R.id.imgVideo);
+        final ImageView videoView = (ImageView) dialogView.findViewById(R.id.imgPhoto);
 
         Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(fileName, MediaStore.Images.Thumbnails.MINI_KIND);
         videoView.setImageBitmap(thumbnail);
@@ -601,23 +553,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         //final Bitmap imgBitmap = image;
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(HomeActivity.this, R.style.AppCompatAlertDialog);
         LayoutInflater layoutInflater = this.getLayoutInflater();
-        final View dialogView = layoutInflater.inflate(R.layout.gallery_layout, null);
+        final View dialogView = layoutInflater.inflate(R.layout.dialog_layout, null);
         dialogBuilder.setView(dialogView);
 
-        TextView title = new TextView(HomeActivity.this);
+        Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
+        final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
+        title.setTypeface(typeface);
+        title.setTextSize(24);
         title.setText(R.string.imageDialogTitle);
-        title.setGravity(Gravity.CENTER);
-        title.setTextSize(25);
-        title.setBackgroundColor(Color.TRANSPARENT);
-        title.setTextColor(Color.BLACK);
-        RelativeLayout.LayoutParams rl = new RelativeLayout.LayoutParams
-                (ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rl.setMargins(0, 0, 0, 10);
-        title.setLayoutParams(rl);
-        dialogBuilder.setCustomTitle(title);
 
         //final EditText caption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
-        final ImageView photoImg = (ImageView) dialogView.findViewById(R.id.imgGallery);
+        final ImageView photoImg = (ImageView) dialogView.findViewById(R.id.imgPhoto);
 
         photoImg.setImageURI(bitmap);
         dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
@@ -649,17 +595,18 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         videoUriStr = videoUri.getPath();
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(HomeActivity.this, R.style.AppCompatAlertDialog);
         LayoutInflater layoutInflater = this.getLayoutInflater();
-        final View dialogView = layoutInflater.inflate(R.layout.gallery_video_layout, null);
+        final View dialogView = layoutInflater.inflate(R.layout.dialog_layout, null);
         dialogBuilder.setView(dialogView);
 
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
-        final TextView title = (TextView) dialogView.findViewById(R.id.txtTitleVideoGallery);
+        final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
         title.setTypeface(typeface);
         title.setTextSize(24);
+        title.setText(R.string.videoDialogTitle);
 
         //final EditText caption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(pathVideoGallery, MediaStore.Images.Thumbnails.MINI_KIND);
-        final ImageView videoImg = (ImageView) dialogView.findViewById(R.id.videoGallery);
+        final ImageView videoImg = (ImageView) dialogView.findViewById(R.id.imgPhoto);
 
         videoImg.setImageBitmap(thumbnail);
 
@@ -686,23 +633,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
-    }
-
-    private File saveAsImageFile() throws IOException {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imgFileName = "JPEG_" + timeStamp + "_";
-
-        File sdcard = new File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                IMAGE_DIR_NAME);
-
-        File image = File.createTempFile(imgFileName,
-                ".jpg",
-                sdcard);
-
-        fullImgPath = image.getAbsolutePath();
-
-        return image;
     }
 
     private static File getOutputMediaFile(int type) {
@@ -774,10 +704,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 }
                             }
                         }
-                        /*fileOperation = true;
-
-                        Drive.DriveApi.newDriveContents(googleApiClient)
-                                .setResultCallback(driveContentsCallback);*/
 
                         dialog.cancel();
                     }
@@ -801,8 +727,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     if (result.getStatus().isSuccess()) {
                         if (fileOperation) {
                             createFileGoogleDrive(result);
-                        } else {
-                            openFileFromDrive();
                         }
                     }
                 }
@@ -848,20 +772,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 }
             };
-
-    public void openFileFromDrive() {
-        IntentSender intentSender = Drive.DriveApi
-                .newOpenFileActivityBuilder()
-                .setMimeType(new String[] { "text/plain", "text/html", "image/png" })
-                .build(googleApiClient);
-        try {
-            startIntentSenderForResult(intentSender, REQUEST_CODE_OPENER, null, 0, 0, 0);
-
-            System.out.println("url:" + url);
-        } catch (IntentSender.SendIntentException e) {
-            Log.w("Drive Config", "Unable to send intent", e);
-        }
-    }
 
     public void openGalleryFromDrive() {
         IntentSender intentSender = Drive.DriveApi
@@ -949,7 +859,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             .setResultCallback(fileCallBack);
 
 
-                    openFileFromDrive();
+                    //openFileFromDrive();
                 }
             }
         }.start();
@@ -1002,7 +912,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         .setResultCallback(fileCallBack);
 
 
-                openFileFromDrive();
+                //openFileFromDrive();
             }
         }.start();
     }
@@ -1054,7 +964,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         .setResultCallback(fileCallBack);
 
 
-                openFileFromDrive();
+                //openFileFromDrive();
             }
         }.start();
     }
@@ -1070,7 +980,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 try {
                     ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 
-                    //image.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
                     File videoFile = new File(img);
                     String parent = videoFile.getParent();
                     File realPath = new File(parent);
@@ -1114,7 +1023,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             .setResultCallback(fileCallBack);
 
 
-                    openFileFromDrive();
+                    //openFileFromDrive();
                 }
             }
         }.start();
