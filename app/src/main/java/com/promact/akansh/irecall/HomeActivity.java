@@ -676,6 +676,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         return Uri.fromFile(getOutputMediaFile(type));
     }
 
+    private Bitmap bmp1;
+
     public void showPhotoDialog(Bitmap bmp) {
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this, R.style.AppCompatAlertDialog);
         LayoutInflater layoutInflater = this.getLayoutInflater();
@@ -689,6 +691,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         title.setTypeface(typeface);
         title.setTextSize(24);
 
+        bmp1 = bmp;
         photoImg.setImageBitmap(bmp);
 
         String positiveText = getString(android.R.string.ok);
@@ -969,8 +972,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 try {
                     ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+                    bmp1.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
 
-                    File videoFile = new File(img);
+                    /*File videoFile = new File(img);
                     String parent = videoFile.getParent();
                     File realPath = new File(parent);
 
@@ -990,7 +994,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         }
                     }
 
-                    byteStream.write(bytes);
+                    byteStream.write(bytes);*/
                     outputStream.write(byteStream.toByteArray());
                 } catch (Exception ex) {
                     Log.e("Error in image upload", ex.getMessage());
