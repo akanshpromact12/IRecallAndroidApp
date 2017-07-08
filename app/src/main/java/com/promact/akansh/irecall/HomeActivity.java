@@ -330,53 +330,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         DriveId driveId;
         long fileSize;
-        /*String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());*/
 
         switch (requestCode) {
             case REQUEST_IMAGE_CAPTURE:
                 if (resultCode == RESULT_OK) {
-/*
-                    final File sdcard = new File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                            IMAGE_DIR_NAME);
-*/
-
-                    /*photoFile = new File(storage.getPath() + File.separator
-                            + "IMG_" + timeStamp + ".jpg");*//*
-                    final File phFile = new File(sdcard.getPath() + File.separator
-                            + "IMG_" + timeStamp + ".jpg");
-                    img = sdcard.getPath() + File.separator
-                            + "IMG_" + timeStamp + ".jpg";*/
-
                     Bundle bundle = data.getExtras();
                     Bitmap bitmap1 = (Bitmap) bundle.get("data");
 
-                    /*ByteArrayOutputStream stream;
-                    FileOutputStream fileOutputStream;
-
-                    try {
-                        if (!sdcard.exists()) {
-                            sdcard.mkdir();
-                        }
-                        phFile.createNewFile();
-
-                        stream = new ByteArrayOutputStream();
-                        bitmap1.compress(Bitmap.CompressFormat.PNG, 100, stream);
-
-                        fileOutputStream = new FileOutputStream(phFile);
-                        fileOutputStream.write(stream.toByteArray());
-                    } catch (Exception ex) {
-                        Log.e("Exception", ex.getMessage());
-                    }
-
-                    imageUri = Uri.fromFile(photoFile);
-                    uriPath = imageUri.getPath();*/
                     showPhotoDialog(bitmap1);
-
-                    /*if ((fileSize / 1024) < 5) {
-                    } else {
-                        Toast.makeText(this, "image file greater than 5MB", Toast.LENGTH_SHORT).show();
-                    }*/
                 }
                 break;
             case REQUEST_VIDEO_CAPTURE:
@@ -734,26 +695,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setPositiveButton(positiveText, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        File sdcard = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                                IMAGE_DIR_NAME);
-                        System.out.println("Files: " + sdcard);
+                        fileOperation = true;
 
-                        if (sdcard.exists()) {
-                            File fileList[] = sdcard.listFiles();
-
-                            for (File file : fileList) {
-
-                                if (file.toString().equals(img)) {
-                                    //Toast.makeText(HomeActivity.this, "Files: " + file.toString(), Toast.LENGTH_SHORT).show();
-                                    System.out.println("Files: " + file.toString());
-
-                                    fileOperation = true;
-
-                                    Drive.DriveApi.newDriveContents(googleApiClient)
-                                            .setResultCallback(driveContentsCallback);
-                                }
-                            }
-                        }
+                        Drive.DriveApi.newDriveContents(googleApiClient)
+                                .setResultCallback(driveContentsCallback);
 
                         dialog.cancel();
                     }
