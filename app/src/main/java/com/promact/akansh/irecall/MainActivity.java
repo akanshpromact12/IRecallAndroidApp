@@ -1,6 +1,5 @@
 package com.promact.akansh.irecall;
 
-import android.*;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -102,6 +101,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         else{
             Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
             startActivity(intent);
+        }
+
+        if (getIntent().getBooleanExtra("EXIT", false)) {
+            finish();
         }
     }
 

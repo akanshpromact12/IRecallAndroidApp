@@ -33,7 +33,7 @@
         android:layout_alignParentEnd="true"
         android:paddingBottom="0dp"
         android:paddingStart="16dp"
-        android:paddingEnd="16dp"
+        android:paddingEnd="0dp"
         fab:fab_showShadow="true"
         fab:menu_labels_showShadow="true"
         fab:menu_labels_maxLines="-1"

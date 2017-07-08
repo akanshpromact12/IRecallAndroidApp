@@ -17,6 +17,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
@@ -58,6 +59,7 @@ import com.google.android.gms.drive.OpenFileActivityBuilder;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -97,15 +99,19 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private static final int MEDIA_TYPE_VIDEO = 200;
     private static final String VIDEO_DIR_NAME = "videoDir";
     private static final String IMAGE_DIR_NAME = "images";
+    private FloatingActionMenu floatingActionMenu;
+    private FloatingActionButton floatActionGallery;
+    private FloatingActionButton floatActionCamera;
+    private boolean doubleBackToExitPressedOnce = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_main);
 
-        FloatingActionButton floatActionCamera = (FloatingActionButton) findViewById(R.id.menu_camera_option);
-        FloatingActionButton floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
-        final FloatingActionMenu floatingActionMenu = (FloatingActionMenu) findViewById(R.id.floating_action_menu);
+        floatActionCamera = (FloatingActionButton) findViewById(R.id.menu_camera_option);
+        floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
+        floatingActionMenu = (FloatingActionMenu) findViewById(R.id.floating_action_menu);
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
 
         txt = (TextView) findViewById(R.id.txtView1);
@@ -238,21 +244,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     public void takingPicture(){
         Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
 
         if (pictureIntent.resolveActivity(getPackageManager()) != null){
-            storage = new File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                    IMAGE_DIR_NAME);
-
-            photoFile = new File(storage.getPath() + File.separator
-                    + "VID_" + timeStamp + ".jpg");
-            img = storage.getPath() + File.separator
-                    + "VID_" + timeStamp + ".jpg";
-            imageUri = Uri.fromFile(photoFile);
-            uriPath = imageUri.getPath();
-
-            pictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+            //pictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
             startActivityForResult(pictureIntent, REQUEST_IMAGE_CAPTURE);
         }
     }
@@ -326,20 +320,74 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         alertDialogObj.show(); //Shows the dialog box;
     }
 
+    public static long getFileSize(File file) {
+        long size = file.length();
+
+        return size;
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         DriveId driveId;
+        long fileSize;
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
 
         switch (requestCode) {
             case REQUEST_IMAGE_CAPTURE:
-                if (photoFile != null && resultCode == RESULT_OK) {
-                    showPhotoDialog();
+                if (resultCode == RESULT_OK) {
+                    final File sdcard = new File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                            IMAGE_DIR_NAME);
+
+                    /*photoFile = new File(storage.getPath() + File.separator
+                            + "IMG_" + timeStamp + ".jpg");*/
+                    final File phFile = new File(sdcard.getPath() + File.separator
+                            + "IMG_" + timeStamp + ".jpg");
+                    img = sdcard.getPath() + File.separator
+                            + "IMG_" + timeStamp + ".jpg";
+
+                    Bundle bundle = data.getExtras();
+                    Bitmap bitmap1 = (Bitmap) bundle.get("data");
+
+                    /*ByteArrayOutputStream stream;
+                    FileOutputStream fileOutputStream;
+
+                    try {
+                        if (!sdcard.exists()) {
+                            sdcard.mkdir();
+                        }
+                        phFile.createNewFile();
+
+                        stream = new ByteArrayOutputStream();
+                        bitmap1.compress(Bitmap.CompressFormat.PNG, 100, stream);
+
+                        fileOutputStream = new FileOutputStream(phFile);
+                        fileOutputStream.write(stream.toByteArray());
+                    } catch (Exception ex) {
+                        Log.e("Exception", ex.getMessage());
+                    }
+
+                    imageUri = Uri.fromFile(photoFile);
+                    uriPath = imageUri.getPath();*/
+                    showPhotoDialog(bitmap1);
+
+                    /*if ((fileSize / 1024) < 5) {
+                    } else {
+                        Toast.makeText(this, "image file greater than 5MB", Toast.LENGTH_SHORT).show();
+                    }*/
                 }
                 break;
             case REQUEST_VIDEO_CAPTURE:
                 if (fileName != null && resultCode == RESULT_OK) {
                     videoUri = data.getData();
-                    showVideoDialog();
+                    File file = new File(fileName);
+                    fileSize = getFileSize(file) / 1024;
+
+                    if ((fileSize / 1024) < 5) {
+                        showVideoDialog();
+                    } else {
+                        Toast.makeText(this, "video file greater than 5MB", Toast.LENGTH_SHORT).show();
+                    }
                 }
                 break;
             case REQUEST_CODE_OPENER:
@@ -665,7 +713,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         return Uri.fromFile(getOutputMediaFile(type));
     }
 
-    public void showPhotoDialog() {
+    public void showPhotoDialog(Bitmap bmp) {
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this, R.style.AppCompatAlertDialog);
         LayoutInflater layoutInflater = this.getLayoutInflater();
         final View dialogView = layoutInflater.inflate(R.layout.dialog_layout, null);
@@ -678,7 +726,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         title.setTypeface(typeface);
         title.setTextSize(24);
 
-        photoImg.setImageURI(Uri.fromFile(photoFile));
+        photoImg.setImageBitmap(bmp);
 
         String positiveText = getString(android.R.string.ok);
         dialogBuilder.setPositiveButton(positiveText, new DialogInterface.OnClickListener() {
@@ -833,17 +881,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 fis = new FileInputStream(file);
                                 fis.read(bytes); //this will convert file into byte array.
                                 fis.close();
-
-                                mbSize = file.length() / (1024 * 1024);
                             }
                         }
                     }
-                    if (mbSize < 5) {
-                        byteStream.write(bytes);
-                        outputStream.write(byteStream.toByteArray());
-                    } else
-                        Toast.makeText(HomeActivity.this,
-                                "File size shouldn't > 5 MB", Toast.LENGTH_SHORT).show();
+
+                    byteStream.write(bytes);
+                    outputStream.write(byteStream.toByteArray());
                 } catch (Exception ex) {
                     Log.e("Error in video upload", ex.getMessage());
                 }
@@ -1001,13 +1044,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     }
 
                     byteStream.write(bytes);
-
-                    if (byteStream.size() >= 5000000) {
-                        Toast.makeText(HomeActivity.this, "File Size > 5 MB",
-                                Toast.LENGTH_SHORT).show();
-                        outputStream.write(null);
-                    } else
-                        outputStream.write(byteStream.toByteArray());
+                    outputStream.write(byteStream.toByteArray());
                 } catch (Exception ex) {
                     Log.e("Error in image upload", ex.getMessage());
                 }
@@ -1070,33 +1107,56 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        Toast.makeText(this, "Connected", Toast.LENGTH_SHORT).show();
+        //Toast.makeText(this, "Connected", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onBackPressed(){
+        if (doubleBackToExitPressedOnce) {
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            intent.putExtra("EXIT", true);
+            startActivity(intent);
+        }
+
+        if (floatingActionMenu.isOpened()) {
+            floatingActionMenu.close(true);
+        }
+
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                doubleBackToExitPressedOnce = false;
+            }
+        }, 3000);
+
+        this.doubleBackToExitPressedOnce = true;
+        Toast.makeText(this, "Please press BACK button to exit", Toast.LENGTH_SHORT).show();
+
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
 
         if (drawer.isDrawerOpen(GravityCompat.START))
             drawer.closeDrawer(GravityCompat.START);
 
-        AlertDialog.Builder alertBuilder = new AlertDialog.Builder(HomeActivity.this);
+        /*AlertDialog.Builder alertBuilder = new AlertDialog.Builder(HomeActivity.this);
         alertBuilder.setTitle(R.string.exit);
         alertBuilder.setMessage(R.string.exitMsg);
         alertBuilder.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                Intent intent = new Intent(Intent.ACTION_MAIN);
-                intent.addCategory(Intent.CATEGORY_HOME);
+
+
+                *//*Intent intent = new Intent(Intent.ACTION_MAIN);
                 intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                intent.putExtra("EXIT", true);
                 startActivity(intent);
-                finish();
+                finish();*//*
 
                 dialog.cancel();
             }
-        });
+        });*/
 
-        alertBuilder.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+        /*alertBuilder.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.cancel();
@@ -1104,7 +1164,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         });
 
         AlertDialog alertDialogObj = alertBuilder.create();
-        alertDialogObj.show();
+        alertDialogObj.show();*/
     }
 
     @Override
