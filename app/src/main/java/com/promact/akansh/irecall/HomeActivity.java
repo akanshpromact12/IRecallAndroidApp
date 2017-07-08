@@ -330,21 +330,23 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         DriveId driveId;
         long fileSize;
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
+        /*String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());*/
 
         switch (requestCode) {
             case REQUEST_IMAGE_CAPTURE:
                 if (resultCode == RESULT_OK) {
+/*
                     final File sdcard = new File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                             IMAGE_DIR_NAME);
+*/
 
                     /*photoFile = new File(storage.getPath() + File.separator
-                            + "IMG_" + timeStamp + ".jpg");*/
+                            + "IMG_" + timeStamp + ".jpg");*//*
                     final File phFile = new File(sdcard.getPath() + File.separator
                             + "IMG_" + timeStamp + ".jpg");
                     img = sdcard.getPath() + File.separator
-                            + "IMG_" + timeStamp + ".jpg";
+                            + "IMG_" + timeStamp + ".jpg";*/
 
                     Bundle bundle = data.getExtras();
                     Bitmap bitmap1 = (Bitmap) bundle.get("data");
