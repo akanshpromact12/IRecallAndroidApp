@@ -105,6 +105,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private FloatingActionButton floatActionGallery;
     private FloatingActionButton floatActionCamera;
     private boolean doubleBackToExitPressedOnce = false;
+    private FirebaseDatabase db;
+    private DatabaseReference dbRef;
+    private LocationManager locationManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,7 +121,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         txt = (TextView) findViewById(R.id.txtView1);
         caption = (EditText) findViewById(R.id.txtCaption);
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         try{
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         } catch (SecurityException e){
@@ -203,6 +206,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         googleApiClient.connect();
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        db = FirebaseDatabase.getInstance();
+    }
+
     public void openImageChooser() {
         Intent intent = new Intent();
         intent.setType("image/*");
@@ -226,7 +236,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public void onLocationChanged(Location location) {
         latitude = location.getLatitude();
+        Toast.makeText(this, "lat " + latitude, Toast.LENGTH_SHORT).show();
         longitude = location.getLongitude();
+        Toast.makeText(this, "longitude " + longitude, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -709,11 +721,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     }
                 });
 
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        DatabaseReference ref = database.getReference("message");
-
-        ref.setValue("Hello World!!!");
-
         dialogBuilder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -856,7 +863,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                     Drive.DriveApi.getRootFolder(googleApiClient)
                             .createFile(googleApiClient, changeSet, driveContents)
-                            .setResultCallback(fileCallBack);
+                            .setResultCallback(fileVideoCallBack);
 
 
                     //openFileFromDrive();
@@ -961,7 +968,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 Drive.DriveApi.getRootFolder(googleApiClient)
                         .createFile(googleApiClient, changeSet, driveContents)
-                        .setResultCallback(fileCallBack);
+                        .setResultCallback(fileVideoCallBack);
 
 
                 //openFileFromDrive();
@@ -1033,11 +1040,51 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         return;
                     }
 
+                    System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
+                    Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
+                            , Toast.LENGTH_SHORT).show();
 
+                    String dateFormat = new SimpleDateFormat("yyyyMMdd-HH:mm:ss").format(new Date());
+/*
+                    Float[] results = new Float[1];
+                    Location.distanceBetween();*/
+
+                    dbRef = db.getReference("Location-Latitude");
+                    dbRef.child("IRecall-" + dateFormat).child("Location-Latitude").setValue(""+latitude);
+                    dbRef = db.getReference("Location-Longitude");
+                    dbRef.child("IRecall-" + dateFormat).child("Location-Longitude").setValue(""+longitude);
+                    dbRef = db.getReference("image-or-Video");
+                    dbRef.child("IRecall-" + dateFormat).child("image-or-Video").setValue("I");
+                    dbRef = db.getReference("MediaId");
+                    dbRef.child("IRecall-" + dateFormat).child("MediaId").setValue(""+result.getDriveFile().getDriveId());
+                    dbRef = db.getReference("Image Caption");
+                    dbRef.child("IRecall-" + dateFormat).child("Image Caption").setValue("Image caption");
+                }
+            };
+
+    final private ResultCallback<DriveFolder.DriveFileResult> fileVideoCallBack = new
+            ResultCallback<DriveFolder.DriveFileResult>() {
+                @Override
+                public void onResult(@NonNull DriveFolder.DriveFileResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        Log.e("Drive Config: ", "Error while trying to create the file");
+                        return;
+                    }
 
                     System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
                     Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
                             , Toast.LENGTH_SHORT).show();
+
+                    dbRef = db.getReference("Location-Latitude");
+                    dbRef.setValue(""+latitude);
+                    dbRef = db.getReference("Location-Longitude");
+                    dbRef.setValue(""+longitude);
+                    dbRef = db.getReference("image-or-video");
+                    dbRef.setValue("V");
+                    dbRef = db.getReference("MediaId");
+                    dbRef.setValue(""+result.getDriveFile().getDriveId());
+                    dbRef = db.getReference("Video Caption");
+                    dbRef.setValue("Video caption");
                 }
             };
 
