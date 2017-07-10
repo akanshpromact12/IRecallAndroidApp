@@ -55,6 +55,8 @@ import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.drive.OpenFileActivityBuilder;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -707,6 +709,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     }
                 });
 
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        DatabaseReference ref = database.getReference("message");
+
+        ref.setValue("Hello World!!!");
+
         dialogBuilder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -1063,7 +1070,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onBackPressed(){
-        if (doubleBackToExitPressedOnce) {
+        finish();
+       /* if (doubleBackToExitPressedOnce) {
             Intent intent = new Intent(Intent.ACTION_MAIN);
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             intent.putExtra("EXIT", true);
@@ -1089,7 +1097,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         if (drawer.isDrawerOpen(GravityCompat.START))
             drawer.closeDrawer(GravityCompat.START);
 
-        /*AlertDialog.Builder alertBuilder = new AlertDialog.Builder(HomeActivity.this);
+        *//*AlertDialog.Builder alertBuilder = new AlertDialog.Builder(HomeActivity.this);
         alertBuilder.setTitle(R.string.exit);
         alertBuilder.setMessage(R.string.exitMsg);
         alertBuilder.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
@@ -1097,17 +1105,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             public void onClick(DialogInterface dialog, int which) {
 
 
-                *//*Intent intent = new Intent(Intent.ACTION_MAIN);
+                *//**//*Intent intent = new Intent(Intent.ACTION_MAIN);
                 intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 intent.putExtra("EXIT", true);
                 startActivity(intent);
-                finish();*//*
+                finish();*//**//*
 
                 dialog.cancel();
             }
-        });*/
+        });*//*
 
-        /*alertBuilder.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+        *//*alertBuilder.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.cancel();

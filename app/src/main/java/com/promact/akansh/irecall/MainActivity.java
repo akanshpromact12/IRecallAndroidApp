@@ -17,8 +17,17 @@ import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
+import com.google.android.gms.auth.api.signin.SignInAccount;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GoogleAuthProvider;
+
 import android.Manifest;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener{
@@ -27,11 +36,22 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private Uri photoUri;
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSIONS = 20;
+    private FirebaseAuth mAuth;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        FirebaseUser user = mAuth.getCurrentUser();
+        Log.i("IRecall", "user: " + user);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mAuth = FirebaseAuth.getInstance();
 
         if (SaveSharedPref.getToken(MainActivity.this).length()==0){
             //This code is for configuring the sign-in in order to request the user's name and email;
@@ -123,7 +143,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
         if (result.isSuccess()){
             GoogleSignInAccount account = result.getSignInAccount();
-            if (account != null){
+            firebaseAuthWithGoogle(account);
+
+            /*if (account != null){
                 idToken = account.getIdToken();
                 name = account.getDisplayName();
                 email = account.getEmail();
@@ -137,13 +159,35 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             intent.putExtra("photoUri", photoUri.toString());
             SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString());
 
-            startActivity(intent);
+            startActivity(intent);*/
         }
 
         else{
             Toast.makeText(getApplicationContext(), "Login was unsuccessful", Toast.LENGTH_SHORT).show();
         }
     }
+
+    private void firebaseAuthWithGoogle(GoogleSignInAccount account) {
+        Log.i("IRecall firebase auth: ", "-----------------" + account.getId());
+
+        AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
+        mAuth.signInWithCredential(credential)
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        Log.i("IRecall user: ", "=============== completed===============");
+                        if (task.isSuccessful()) {
+                            FirebaseUser user = mAuth.getCurrentUser();
+                            Log.i("IRecall user: ", "users: " + user);
+                        } else {
+                            Toast.makeText(MainActivity.this, "Authentication unsuccessful",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                });
+    }
+
 
     @Override
     public void onConnectionFailed(@NonNull  ConnectionResult connectionResult){
