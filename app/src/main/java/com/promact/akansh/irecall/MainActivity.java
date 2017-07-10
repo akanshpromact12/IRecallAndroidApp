@@ -145,7 +145,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             GoogleSignInAccount account = result.getSignInAccount();
             firebaseAuthWithGoogle(account);
 
-            /*if (account != null){
+            if (account != null){
                 idToken = account.getIdToken();
                 name = account.getDisplayName();
                 email = account.getEmail();
@@ -159,7 +159,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             intent.putExtra("photoUri", photoUri.toString());
             SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString());
 
-            startActivity(intent);*/
+            startActivity(intent);
         }
 
         else{
