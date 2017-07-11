@@ -58,6 +58,9 @@ import com.google.android.gms.drive.OpenFileActivityBuilder;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -1049,7 +1052,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Float[] results = new Float[1];
                     Location.distanceBetween();*/
 
-                    dbRef = db.getReference("Location-Latitude");
+                    /*dbRef = db.getReference("Location-Latitude");
                     dbRef.child("IRecall-" + dateFormat).child("Location-Latitude").setValue(""+latitude);
                     dbRef = db.getReference("Location-Longitude");
                     dbRef.child("IRecall-" + dateFormat).child("Location-Longitude").setValue(""+longitude);
@@ -1058,7 +1061,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     dbRef = db.getReference("MediaId");
                     dbRef.child("IRecall-" + dateFormat).child("MediaId").setValue(""+result.getDriveFile().getDriveId());
                     dbRef = db.getReference("Image Caption");
-                    dbRef.child("IRecall-" + dateFormat).child("Image Caption").setValue("Image caption");
+                    dbRef.child("IRecall-" + dateFormat).child("Image Caption").setValue("Image caption");*/
+                    dbRef = db.getReference().child("Locations");
+
+                    dbRef.child("user" + Math.random() + " Info").child("Latitude").setValue(latitude);
+                    dbRef.child("user" + Math.random() + " Info").child("Longitude").setValue(latitude);
+                    dbRef.child("user" + Math.random() + " Info").child("Image-or-video").setValue("I");
+                    dbRef.child("user" + Math.random() + " Info").child("MediaId").setValue(result.getDriveFile().getDriveId());
+                    dbRef.child("user" + Math.random() + " Info").child("caption").setValue("caption");
                 }
             };
 
