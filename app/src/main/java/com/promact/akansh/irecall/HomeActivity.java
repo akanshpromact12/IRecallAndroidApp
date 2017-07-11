@@ -42,6 +42,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.firebase.client.ChildEventListener;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
 import com.google.android.gms.common.ConnectionResult;
@@ -55,11 +58,14 @@ import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.drive.OpenFileActivityBuilder;
+import com.google.api.services.drive.model.User;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.firebase.database.ValueEventListener;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -110,8 +116,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private FloatingActionButton floatActionCamera;
     private boolean doubleBackToExitPressedOnce = false;
     private FirebaseDatabase db;
+    private FirebaseAuth firebaseAuth;
+    private FirebaseUser user;
+    private Firebase firebase;
     private DatabaseReference dbRef;
     private LocationManager locationManager;
+    String userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,6 +132,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
         floatingActionMenu = (FloatingActionMenu) findViewById(R.id.floating_action_menu);
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
+        firebase.setAndroidContext(getApplicationContext());
 
         txt = (TextView) findViewById(R.id.txtView1);
         caption = (EditText) findViewById(R.id.txtCaption);
@@ -135,13 +146,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             name = intent.getStringExtra("name");
             email = intent.getStringExtra("email");
             photoUri = intent.getStringExtra("photoUri");
+            userId = intent.getStringExtra("userId");
         } else {
             name = SaveSharedPref.getUsername(getApplicationContext());
             email = SaveSharedPref.getEmail(getApplicationContext());
             photoUri = SaveSharedPref.getPhotoUri(getApplicationContext());
+            userId = SaveSharedPref.getUserId(getApplicationContext());
 
             Toast.makeText(this, "logged in as: " + email, Toast.LENGTH_SHORT).show();
         }
+
+        Toast.makeText(this, "userid: " + userId, Toast.LENGTH_SHORT).show();
 
         NavigationView nav = (NavigationView) findViewById(R.id.nav_view);
         View newView = nav.getHeaderView(0); //Gets the header view from the header page, where all the widgets are kept.
@@ -1063,15 +1078,78 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     dbRef.child("IRecall-" + dateFormat).child("MediaId").setValue(""+result.getDriveFile().getDriveId());
                     dbRef = db.getReference("Image Caption");
                     dbRef.child("IRecall-" + dateFormat).child("Image Caption").setValue("Image caption");*/
-                    dbRef = db.getReference().child("Locations");
                     Random random = new Random();
-                    final int randno = random.nextInt(61) + 20;
+                    int randNumber = random.nextInt(61) + 20;
 
-                    dbRef.child("user_Info_"+randno).child("Latitude").setValue(""+latitude);
-                    dbRef.child("user_Info_"+randno).child("Longitude").setValue(""+latitude);
-                    dbRef.child("user_Info_"+randno).child("Image-or-video").setValue("I");
-                    dbRef.child("user_Info_"+randno).child("MediaId").setValue(""+result.getDriveFile().getDriveId());
-                    dbRef.child("user_Info_"+randno).child("caption").setValue("caption");
+                    dbRef = db.getReference().child(userId);
+                    firebase = new Firebase("https://irecall-4dcd0.firebaseio.com/" + userId);
+
+                    firebase.addChildEventListener(new ChildEventListener() {
+                        @Override
+                        public void onChildAdded(com.firebase.client.DataSnapshot dataSnapshot, String s) {
+
+                            String value = dataSnapshot.getValue(String.class);
+                            Toast.makeText(HomeActivity.this, "values: " + value,
+                                    Toast.LENGTH_SHORT).show();
+                            Log.i("dataSnapshots ", value);
+
+                        }
+
+                        @Override
+                        public void onChildChanged(com.firebase.client.DataSnapshot dataSnapshot, String s) {
+
+                        }
+
+                        @Override
+                        public void onChildRemoved(com.firebase.client.DataSnapshot dataSnapshot) {
+
+                        }
+
+                        @Override
+                        public void onChildMoved(com.firebase.client.DataSnapshot dataSnapshot, String s) {
+
+                        }
+
+                        @Override
+                        public void onCancelled(FirebaseError firebaseError) {
+
+                        }
+                    });
+
+                    /*dbRef.child(userId).addValueEventListener(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot dataSnapshot) {
+                            LocationBean val = dataSnapshot.getValue(LocationBean.class);
+
+                            Log.i("value userId", val.getUserid());
+                            LocationBean locationBean = dataSnapshot.getValue(LocationBean.class);
+
+                            Log.i("IRecall - home", locationBean.getUserid());
+                            Toast.makeText(HomeActivity.this,
+                                    locationBean.getAlbumid(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(HomeActivity.this,
+                                    locationBean.getImageId(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(HomeActivity.this,
+                                    locationBean.getMediaId(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(HomeActivity.this,
+                                    locationBean.getCaption(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(HomeActivity.this,
+                                    ""+locationBean.getLatitude(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(HomeActivity.this,
+                                    ""+locationBean.getLongitude(), Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onCancelled(DatabaseError databaseError) {
+
+                        }
+                    });*/
+
+
+                    dbRef.child("AlbumId"+randNumber).child("Latitude").setValue(""+latitude);
+                    dbRef.child("AlbumId"+randNumber).child("Longitude").setValue(""+longitude);
+                    dbRef.child("AlbumId"+randNumber).child("ImageId").child("caption").setValue("caption");
+                    dbRef.child("AlbumId"+randNumber).child("ImageId").child("URL").setValue("url");
                 }
             };
 

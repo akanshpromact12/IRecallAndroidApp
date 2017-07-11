@@ -37,13 +37,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSIONS = 20;
     private FirebaseAuth mAuth;
+    private FirebaseUser user;
 
     @Override
     protected void onStart() {
         super.onStart();
 
-        FirebaseUser user = mAuth.getCurrentUser();
-        Log.i("IRecall", "user: " + user);
+        /*user = mAuth.getCurrentUser();
+        Log.i("IRecall user", "user: " + user);*/
     }
 
     @Override
@@ -126,6 +127,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         if (getIntent().getBooleanExtra("EXIT", false)) {
             finish();
         }
+
+        user = mAuth.getCurrentUser();
+        Log.i("IRecall user", "user: " + user);
     }
 
     @Override
@@ -157,7 +161,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             intent.putExtra("name", name);
             intent.putExtra("email", email);
             intent.putExtra("photoUri", photoUri.toString());
-            SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString());
+            intent.putExtra("userId", user.getUid());
+            SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString(), user.getUid());
 
             startActivity(intent);
         }
