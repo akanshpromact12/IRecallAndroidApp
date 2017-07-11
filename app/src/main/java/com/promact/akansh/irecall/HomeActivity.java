@@ -69,6 +69,7 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Random;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -1063,12 +1064,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     dbRef = db.getReference("Image Caption");
                     dbRef.child("IRecall-" + dateFormat).child("Image Caption").setValue("Image caption");*/
                     dbRef = db.getReference().child("Locations");
+                    Random random = new Random();
+                    final int randno = random.nextInt(61) + 20;
 
-                    dbRef.child("user" + Math.random() + " Info").child("Latitude").setValue(latitude);
-                    dbRef.child("user" + Math.random() + " Info").child("Longitude").setValue(latitude);
-                    dbRef.child("user" + Math.random() + " Info").child("Image-or-video").setValue("I");
-                    dbRef.child("user" + Math.random() + " Info").child("MediaId").setValue(result.getDriveFile().getDriveId());
-                    dbRef.child("user" + Math.random() + " Info").child("caption").setValue("caption");
+                    dbRef.child("user_Info_"+randno).child("Latitude").setValue(""+latitude);
+                    dbRef.child("user_Info_"+randno).child("Longitude").setValue(""+latitude);
+                    dbRef.child("user_Info_"+randno).child("Image-or-video").setValue("I");
+                    dbRef.child("user_Info_"+randno).child("MediaId").setValue(""+result.getDriveFile().getDriveId());
+                    dbRef.child("user_Info_"+randno).child("caption").setValue("caption");
                 }
             };
 
