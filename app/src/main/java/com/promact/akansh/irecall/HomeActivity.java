@@ -936,7 +936,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     byteStream.write(bytes);
                     outputStream.write(byteStream.toByteArray());
                 } catch (Exception ex) {
-                    Log.e("Error in video upload", ex.getMessage());
+                    System.out.println("Error in video upload" + ex.getMessage());
                 }
 
                 if (outputStream != null) {
