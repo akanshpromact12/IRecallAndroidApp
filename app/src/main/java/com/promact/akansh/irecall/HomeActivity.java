@@ -119,6 +119,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private DatabaseReference dbRef;
     private LocationManager locationManager;
     private String albumid;
+    private String strCaption;
     String userId;
     private static final String TAG="HomeActivity";
 
@@ -135,6 +136,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         txt = (TextView) findViewById(R.id.txtView1);
         caption = (EditText) findViewById(R.id.txtCaption);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        strCaption = "";
         try{
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         } catch (SecurityException e){
@@ -239,13 +241,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 if (map.size()>0) {
                     String albumId = map.get("AlbumId").toString();
-                    String imageId = map.get("ImageId").toString();
+                    String MediaId = map.get("MediaId").toString();
                     String url = map.get("URL").toString();
                     String caption = map.get("caption").toString();
                     String latitude = map.get("Latitude").toString();
                     String longitude = map.get("Longitude").toString();
 
-                    Log.i("values fetched ", albumId + " " + imageId
+                    Log.i("values fetched ", albumId + " " + MediaId
                             + " " + url + " " + caption + " " + latitude + " "
                             + longitude);
                 }
@@ -593,6 +595,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         title.setTypeface(typeface);
         title.setTextSize(24);
         title.setText(R.string.videoDialogTitle);
@@ -605,6 +608,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                strCaption = txtCaption.getText().toString();
+                Log.d(TAG, "caption: " + strCaption);
+
                 File sdcard = new File(
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                         VIDEO_DIR_NAME);
@@ -649,6 +655,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setView(dialogView);
 
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
         title.setTypeface(typeface);
         title.setTextSize(24);
@@ -661,6 +668,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                strCaption = txtCaption.getText().toString();
+                Log.d(TAG, "caption: " + strCaption);
+
                 fileOperation = true;
 
                 Drive.DriveApi.newDriveContents(googleApiClient)
@@ -691,6 +701,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setView(dialogView);
 
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
         title.setTypeface(typeface);
         title.setTextSize(24);
@@ -705,6 +716,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                strCaption = txtCaption.getText().toString();
+                Log.d(TAG, "caption: " + strCaption);
+
                 fileOperation = true;
 
                 Drive.DriveApi.newDriveContents(googleApiClient)
@@ -765,12 +779,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         final View dialogView = layoutInflater.inflate(R.layout.dialog_layout, null);
         dialogBuilder.setView(dialogView);
 
-        //final EditText caption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final ImageView photoImg = (ImageView) dialogView.findViewById(R.id.imgPhoto);
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
         title.setTypeface(typeface);
         title.setTextSize(24);
+
 
         bmp1 = bmp;
         photoImg.setImageBitmap(bmp);
@@ -780,6 +795,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         fileOperation = true;
+                        strCaption = txtCaption.getText().toString();
+                        Log.d(TAG, "caption: " + strCaption);
 
                         Drive.DriveApi.newDriveContents(googleApiClient)
                                 .setResultCallback(driveContentsCallback);
@@ -1113,64 +1130,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                     //String dateFormat = new SimpleDateFormat("yyyyMMdd-HH:mm:ss").format(new Date());
                     addValues(result.getDriveFile().getDriveId().toString(),
-                            "caption",
-                            latitude,
-                            longitude);
-
-                    /*dbRef = db.getReference("Location-Latitude");
-                    dbRef.child("IRecall-" + dateFormat).child("Location-Latitude").setValue(""+latitude);
-                    dbRef = db.getReference("Location-Longitude");
-                    dbRef.child("IRecall-" + dateFormat).child("Location-Longitude").setValue(""+longitude);
-                    dbRef = db.getReference("image-or-Video");
-                    dbRef.child("IRecall-" + dateFormat).child("image-or-Video").setValue("I");
-                    dbRef = db.getReference("MediaId");
-                    dbRef.child("IRecall-" + dateFormat).child("MediaId").setValue(""+result.getDriveFile().getDriveId());
-                    dbRef = db.getReference("Image Caption");
-                    dbRef.child("IRecall-" + dateFormat).child("Image Caption").setValue("Image caption");*/
-                    /*Random random = new Random();
-                    int randNumber = random.nextInt(61) + 20;
-
-                    dbRef = db.getReference().child(userId);*/
-
-                    /*dbRef.child(userId).addValueEventListener(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(DataSnapshot dataSnapshot) {
-                            LocationBean val = dataSnapshot.getValue(LocationBean.class);
-
-                            Log.i("value userId", val.getUserid());
-                            LocationBean locationBean = dataSnapshot.getValue(LocationBean.class);
-
-                            Log.i("IRecall - home", locationBean.getUserid());
-                            Toast.makeText(HomeActivity.this,
-                                    locationBean.getAlbumid(), Toast.LENGTH_SHORT).show();
-                            Toast.makeText(HomeActivity.this,
-                                    locationBean.getImageId(), Toast.LENGTH_SHORT).show();
-                            Toast.makeText(HomeActivity.this,
-                                    locationBean.getMediaId(), Toast.LENGTH_SHORT).show();
-                            Toast.makeText(HomeActivity.this,
-                                    locationBean.getCaption(), Toast.LENGTH_SHORT).show();
-                            Toast.makeText(HomeActivity.this,
-                                    ""+locationBean.getLatitude(), Toast.LENGTH_SHORT).show();
-                            Toast.makeText(HomeActivity.this,
-                                    ""+locationBean.getLongitude(), Toast.LENGTH_SHORT).show();
-                        }
-
-                        @Override
-                        public void onCancelled(DatabaseError databaseError) {
-
-                        }
-                    });*/
-
-
-                    /*dbRef.child("AlbumId"+randNumber).child("Latitude").setValue(""+latitude);
-                    dbRef.child("AlbumId"+randNumber).child("Longitude").setValue(""+longitude);
-                    dbRef.child("AlbumId"+randNumber).child("ImageId").child("caption").setValue("caption");
-                    dbRef.child("AlbumId"+randNumber).child("ImageId").child("URL").setValue("url");*/
+                            strCaption,
+                            2000.0,
+                            160.45,
+                            "I");
                 }
             };
 
 
-    private void addValues(String url, String caption, double latitude, double longitude) {
+    private void addValues(String url, String caption, double latitude, double longitude,
+                           String mediaIdentify) {
         Random random = new Random();
 
         Toast.makeText(this, "albumId123456: "+albumid, Toast.LENGTH_SHORT).show();
@@ -1185,7 +1154,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             map.put("AlbumId", albumid);
         }
 
-        map.put("ImageId", Integer.toString(random.nextInt(1081) + 20));
+        map.put("MediaId", mediaIdentify+"_"+Integer.toString(random.nextInt(1081) + 20));
         map.put("URL", url);
         map.put("caption", caption);
         map.put("Latitude", Double.toString(latitude));
@@ -1207,7 +1176,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 Toast.makeText(HomeActivity.this, "lat: " + lat + "long: " + longi, Toast.LENGTH_SHORT).show();
                 Log.i("values ", "lat: " + lat + "long: " + longi);
-                String album = calcDistance(latitude, longitude, lat, longi);
+                String album = calcDistance(2000.0, 160.45, lat, longi);
                 Random random = new Random();
 
                 if (map.size() > 0) {
@@ -1260,6 +1229,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dist = dist * 60 * 1.1515;
         dist = dist * 1.609344;
 
+        Log.d(TAG, "Distance -> " + dist);
+
         String albumid;
         if (dist < 1) {
             albumid = "same";
@@ -1291,16 +1262,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
                             , Toast.LENGTH_SHORT).show();
 
-                    dbRef = db.getReference("Location-Latitude");
-                    dbRef.setValue(""+latitude);
-                    dbRef = db.getReference("Location-Longitude");
-                    dbRef.setValue(""+longitude);
-                    dbRef = db.getReference("image-or-video");
-                    dbRef.setValue("V");
-                    dbRef = db.getReference("MediaId");
-                    dbRef.setValue(""+result.getDriveFile().getDriveId());
-                    dbRef = db.getReference("Video Caption");
-                    dbRef.setValue("Video caption");
+                    addValues(result.getDriveFile().getDriveId().toString(),
+                            strCaption,
+                            2000.0,
+                            160.45,
+                            "V");
                 }
             };
 
