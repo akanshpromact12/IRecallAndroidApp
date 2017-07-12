@@ -17,7 +17,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
@@ -43,6 +42,7 @@ import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.firebase.client.ChildEventListener;
+import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.github.clans.fab.FloatingActionButton;
@@ -58,23 +58,19 @@ import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.drive.OpenFileActivityBuilder;
-import com.google.api.services.drive.model.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 import de.hdodenhof.circleimageview.CircleImageView;
@@ -90,6 +86,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private String videoUriStr;
     private TextView txt;
     private EditText caption;
+    private static String albumID1;
     double latitude;
     double longitude;
     private static String fileName;
@@ -121,7 +118,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private Firebase firebase;
     private DatabaseReference dbRef;
     private LocationManager locationManager;
+    private String albumid;
     String userId;
+    private static final String TAG="HomeActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,7 +131,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
         floatingActionMenu = (FloatingActionMenu) findViewById(R.id.floating_action_menu);
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
-        firebase.setAndroidContext(getApplicationContext());
 
         txt = (TextView) findViewById(R.id.txtView1);
         caption = (EditText) findViewById(R.id.txtCaption);
@@ -157,6 +155,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
 
         Toast.makeText(this, "userid: " + userId, Toast.LENGTH_SHORT).show();
+        Firebase.setAndroidContext(getApplicationContext());
+        firebase = new Firebase("https://irecall-4dcd0.firebaseio.com/" + userId);
+        loadData();
+        loadLatLong();
+
+        Log.d(TAG, "id:: " + albumid);
 
         NavigationView nav = (NavigationView) findViewById(R.id.nav_view);
         View newView = nav.getHeaderView(0); //Gets the header view from the header page, where all the widgets are kept.
@@ -223,6 +227,50 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
 
         googleApiClient.connect();
+
+    }
+
+    private void loadData() {
+
+        firebase.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Map map = dataSnapshot.getValue(Map.class);
+
+                if (map.size()>0) {
+                    String albumId = map.get("AlbumId").toString();
+                    String imageId = map.get("ImageId").toString();
+                    String url = map.get("URL").toString();
+                    String caption = map.get("caption").toString();
+                    String latitude = map.get("Latitude").toString();
+                    String longitude = map.get("Longitude").toString();
+
+                    Log.i("values fetched ", albumId + " " + imageId
+                            + " " + url + " " + caption + " " + latitude + " "
+                            + longitude);
+                }
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
     }
 
     @Override
@@ -1063,10 +1111,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
                             , Toast.LENGTH_SHORT).show();
 
-                    String dateFormat = new SimpleDateFormat("yyyyMMdd-HH:mm:ss").format(new Date());
-/*
-                    Float[] results = new Float[1];
-                    Location.distanceBetween();*/
+                    //String dateFormat = new SimpleDateFormat("yyyyMMdd-HH:mm:ss").format(new Date());
+                    addValues(result.getDriveFile().getDriveId().toString(),
+                            "caption",
+                            latitude,
+                            longitude);
 
                     /*dbRef = db.getReference("Location-Latitude");
                     dbRef.child("IRecall-" + dateFormat).child("Location-Latitude").setValue(""+latitude);
@@ -1078,43 +1127,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     dbRef.child("IRecall-" + dateFormat).child("MediaId").setValue(""+result.getDriveFile().getDriveId());
                     dbRef = db.getReference("Image Caption");
                     dbRef.child("IRecall-" + dateFormat).child("Image Caption").setValue("Image caption");*/
-                    Random random = new Random();
+                    /*Random random = new Random();
                     int randNumber = random.nextInt(61) + 20;
 
-                    dbRef = db.getReference().child(userId);
-                    firebase = new Firebase("https://irecall-4dcd0.firebaseio.com/" + userId);
-
-                    firebase.addChildEventListener(new ChildEventListener() {
-                        @Override
-                        public void onChildAdded(com.firebase.client.DataSnapshot dataSnapshot, String s) {
-
-                            String value = dataSnapshot.getValue(String.class);
-                            Toast.makeText(HomeActivity.this, "values: " + value,
-                                    Toast.LENGTH_SHORT).show();
-                            Log.i("dataSnapshots ", value);
-
-                        }
-
-                        @Override
-                        public void onChildChanged(com.firebase.client.DataSnapshot dataSnapshot, String s) {
-
-                        }
-
-                        @Override
-                        public void onChildRemoved(com.firebase.client.DataSnapshot dataSnapshot) {
-
-                        }
-
-                        @Override
-                        public void onChildMoved(com.firebase.client.DataSnapshot dataSnapshot, String s) {
-
-                        }
-
-                        @Override
-                        public void onCancelled(FirebaseError firebaseError) {
-
-                        }
-                    });
+                    dbRef = db.getReference().child(userId);*/
 
                     /*dbRef.child(userId).addValueEventListener(new ValueEventListener() {
                         @Override
@@ -1146,12 +1162,121 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     });*/
 
 
-                    dbRef.child("AlbumId"+randNumber).child("Latitude").setValue(""+latitude);
+                    /*dbRef.child("AlbumId"+randNumber).child("Latitude").setValue(""+latitude);
                     dbRef.child("AlbumId"+randNumber).child("Longitude").setValue(""+longitude);
                     dbRef.child("AlbumId"+randNumber).child("ImageId").child("caption").setValue("caption");
-                    dbRef.child("AlbumId"+randNumber).child("ImageId").child("URL").setValue("url");
+                    dbRef.child("AlbumId"+randNumber).child("ImageId").child("URL").setValue("url");*/
                 }
             };
+
+
+    private void addValues(String url, String caption, double latitude, double longitude) {
+        Random random = new Random();
+
+        Toast.makeText(this, "albumId123456: "+albumid, Toast.LENGTH_SHORT).show();
+        Log.i("Album123456 ", albumid);
+
+        Map<String, String> map = new HashMap<>();
+        //Toast.makeText(this, "albumId"+albumid, Toast.LENGTH_SHORT).show();
+
+        if (albumid.equalsIgnoreCase("")) {
+            map.put("AlbumId", Integer.toString(random.nextInt(1081) + 20));
+        } else {
+            map.put("AlbumId", albumid);
+        }
+
+        map.put("ImageId", Integer.toString(random.nextInt(1081) + 20));
+        map.put("URL", url);
+        map.put("caption", caption);
+        map.put("Latitude", Double.toString(latitude));
+        map.put("Longitude", Double.toString(longitude));
+
+        firebase.push().setValue(map);
+    }
+
+    private void loadLatLong() {
+        albumid = "";
+        firebase.addChildEventListener(new ChildEventListener() {
+
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Map map = dataSnapshot.getValue(Map.class);
+
+                double lat = Double.parseDouble(map.get("Latitude").toString());
+                double longi = Double.parseDouble(map.get("Longitude").toString());
+
+                Toast.makeText(HomeActivity.this, "lat: " + lat + "long: " + longi, Toast.LENGTH_SHORT).show();
+                Log.i("values ", "lat: " + lat + "long: " + longi);
+                String album = calcDistance(latitude, longitude, lat, longi);
+                Random random = new Random();
+
+                if (map.size() > 0) {
+                    if (album.equalsIgnoreCase("same")) {
+                       albumid = map.get("AlbumId").toString();
+                        Toast.makeText(HomeActivity.this,
+                                "album id: " + albumid, Toast.LENGTH_SHORT).show();
+                        Log.d(TAG,"album id:: "+ albumid);
+
+                    }
+                } else {
+                    albumid = Integer.toString(random.nextInt(1081) + 20);
+                }
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+
+        Log.d(TAG,"album id1 "+ albumid);
+    }
+
+    private String calcDistance(double lat1, double lon1, double lat2, double lon2) {
+        double theta = lon1 - lon2;
+        double dist = Math.sin(deg2rad(lat1))
+                * Math.sin(deg2rad(lat2))
+                + Math.cos(deg2rad(lat1))
+                * Math.cos(deg2rad(lat2))
+                * Math.cos(deg2rad(theta));
+
+        dist = Math.acos(dist);
+        dist = rad2deg(dist);
+        dist = dist * 60 * 1.1515;
+        dist = dist * 1.609344;
+
+        String albumid;
+        if (dist < 1) {
+            albumid = "same";
+        } else {
+            albumid = "different";
+        }
+
+        return albumid;
+    }
+
+    private static double deg2rad(double deg) {
+        return (deg * Math.PI / 180.0);
+    }
+
+    private static double rad2deg(double rad) {
+        return (rad * 180 / Math.PI);
+    }
 
     final private ResultCallback<DriveFolder.DriveFileResult> fileVideoCallBack = new
             ResultCallback<DriveFolder.DriveFileResult>() {
