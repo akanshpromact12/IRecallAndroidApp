@@ -1,34 +1,34 @@
 package com.promact.akansh.irecall;
 
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.Uri;
-import android.support.annotation.NonNull;
-import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
-import android.widget.Toast;
+        import android.content.Intent;
+        import android.content.pm.PackageManager;
+        import android.net.Uri;
+        import android.support.annotation.NonNull;
+        import android.support.design.widget.Snackbar;
+        import android.support.v4.app.ActivityCompat;
+        import android.support.v4.content.ContextCompat;
+        import android.support.v7.app.AppCompatActivity;
+        import android.os.Bundle;
+        import android.util.Log;
+        import android.view.View;
+        import android.widget.Toast;
 
-import com.google.android.gms.auth.api.Auth;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
-import com.google.android.gms.auth.api.signin.GoogleSignInResult;
-import com.google.android.gms.auth.api.signin.SignInAccount;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.AuthResult;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.auth.GoogleAuthProvider;
+        import com.google.android.gms.auth.api.Auth;
+        import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+        import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+        import com.google.android.gms.auth.api.signin.GoogleSignInResult;
+        import com.google.android.gms.auth.api.signin.SignInAccount;
+        import com.google.android.gms.common.ConnectionResult;
+        import com.google.android.gms.common.api.GoogleApiClient;
+        import com.google.android.gms.tasks.OnCompleteListener;
+        import com.google.android.gms.tasks.Task;
+        import com.google.firebase.auth.AuthCredential;
+        import com.google.firebase.auth.AuthResult;
+        import com.google.firebase.auth.FirebaseAuth;
+        import com.google.firebase.auth.FirebaseUser;
+        import com.google.firebase.auth.GoogleAuthProvider;
 
-import android.Manifest;
+        import android.Manifest;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener{
     private static final int RC_SIGN_IN = 1;
@@ -69,12 +69,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     != PackageManager.PERMISSION_GRANTED) {
                 if (ActivityCompat.shouldShowRequestPermissionRationale
                         (MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) ||
-                    ActivityCompat.shouldShowRequestPermissionRationale
-                        (MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ||
-                    ActivityCompat.shouldShowRequestPermissionRationale
-                        (MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) ||
-                    ActivityCompat.shouldShowRequestPermissionRationale
-                        (MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        ActivityCompat.shouldShowRequestPermissionRationale
+                                (MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ||
+                        ActivityCompat.shouldShowRequestPermissionRationale
+                                (MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) ||
+                        ActivityCompat.shouldShowRequestPermissionRationale
+                                (MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                     Snackbar.make(findViewById(android.R.id.content),
                             "Please Grant all permissions",
                             Snackbar.LENGTH_INDEFINITE).setAction("ENABLE",
@@ -83,24 +83,24 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                                 public void onClick(View v) {
                                     ActivityCompat.requestPermissions
                                             (MainActivity.this,
-                                            new String[]
-                                                    {Manifest.permission.READ_EXTERNAL_STORAGE,
-                                                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                                                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                                                    Manifest.permission.ACCESS_FINE_LOCATION},
+                                                    new String[]
+                                                            {Manifest.permission.READ_EXTERNAL_STORAGE,
+                                                                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                                                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                                                                    Manifest.permission.ACCESS_FINE_LOCATION},
                                                     REQUEST_PERMISSIONS);
                                 }
                             }).show();
                 } else {
                     ActivityCompat.requestPermissions
                             (MainActivity.this, new String[]
-                            {
-                             Manifest.permission.READ_EXTERNAL_STORAGE,
-                             Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                             Manifest.permission.ACCESS_COARSE_LOCATION,
-                             Manifest.permission.ACCESS_FINE_LOCATION
-                            },
-                             REQUEST_PERMISSIONS);
+                                            {
+                                                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                                                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                                                    Manifest.permission.ACCESS_FINE_LOCATION
+                                            },
+                                    REQUEST_PERMISSIONS);
                 }
             } else {
                 signInButton.setOnClickListener(new View.OnClickListener(){
@@ -161,8 +161,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             intent.putExtra("name", name);
             intent.putExtra("email", email);
             intent.putExtra("photoUri", photoUri.toString());
-            intent.putExtra("userId", user.getUid());
-            SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString(), user.getUid());
+            //intent.putExtra("userId", user.getUid());
+            SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString()/*, user.getUid()*/);
 
             startActivity(intent);
         }
