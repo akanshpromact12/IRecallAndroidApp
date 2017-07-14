@@ -17,7 +17,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
@@ -42,30 +41,50 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.firebase.client.ChildEventListener;
+import com.firebase.client.DataSnapshot;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.drive.Drive;
+import com.google.android.gms.drive.DriveResource;
+import com.google.android.gms.drive.Metadata;
+import com.google.android.gms.drive.events.ChangeListener;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpResponse;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
+import com.google.android.gms.drive.DriveFile;
 import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.drive.OpenFileActivityBuilder;
+import com.google.android.gms.drive.events.CompletionEvent;
+import com.google.android.gms.drive.events.DriveEventService;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -80,6 +99,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private String videoUriStr;
     private TextView txt;
     private EditText caption;
+    private static String albumID1;
     double latitude;
     double longitude;
     private static String fileName;
@@ -105,11 +125,31 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private FloatingActionButton floatActionGallery;
     private FloatingActionButton floatActionCamera;
     private boolean doubleBackToExitPressedOnce = false;
+    private FirebaseDatabase db;
+    private FirebaseAuth firebaseAuth;
+    private FirebaseUser user;
+    private Firebase firebase;
+    private DatabaseReference dbRef;
+    private LocationManager locationManager;
+    private String albumid;
+    private String strCaption;
+    private String userId;
+    private FirebaseAuth mAuth;
+    private FirebaseUser firebaseUser;
+    private static final String TAG="HomeActivity";
+    private DriveId folderDriveId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_main);
+
+        mAuth = FirebaseAuth.getInstance();
+
+        GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build();
+        GoogleApiClient googleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
+
+        googleApiClient.connect();
 
         floatActionCamera = (FloatingActionButton) findViewById(R.id.menu_camera_option);
         floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
@@ -118,23 +158,43 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         txt = (TextView) findViewById(R.id.txtView1);
         caption = (EditText) findViewById(R.id.txtCaption);
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        strCaption = "";
         try{
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         } catch (SecurityException e){
             Log.e("Location: ", e.getMessage());
-        } if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
+
+
+        }
+
+        firebaseUser = mAuth.getCurrentUser();
+        Log.d(TAG, "user: " + firebaseUser.getUid());
+
+        userId = firebaseUser.getUid();
+
+        if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
             Intent intent = getIntent();
             name = intent.getStringExtra("name");
             email = intent.getStringExtra("email");
             photoUri = intent.getStringExtra("photoUri");
+            //userId = intent.getStringExtra("userId");
         } else {
             name = SaveSharedPref.getUsername(getApplicationContext());
             email = SaveSharedPref.getEmail(getApplicationContext());
             photoUri = SaveSharedPref.getPhotoUri(getApplicationContext());
+            //userId = SaveSharedPref.getUserId(getApplicationContext());
 
             Toast.makeText(this, "logged in as: " + email, Toast.LENGTH_SHORT).show();
         }
+
+        Toast.makeText(this, "userid: " + userId, Toast.LENGTH_SHORT).show();
+        Firebase.setAndroidContext(getApplicationContext());
+        firebase = new Firebase("https://irecall-4dcd0.firebaseio.com/" + userId);
+        loadData();
+        loadLatLong();
+
+        Log.d(TAG, "id:: " + albumid);
 
         NavigationView nav = (NavigationView) findViewById(R.id.nav_view);
         View newView = nav.getHeaderView(0); //Gets the header view from the header page, where all the widgets are kept.
@@ -203,6 +263,91 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         googleApiClient.connect();
     }
 
+    public GoogleApiClient getGoogleApiClient() {
+        return googleApiClient;
+    }
+
+    final ResultCallback<DriveFolder.DriveFolderResult> folderCallback = new ResultCallback<DriveFolder.DriveFolderResult>() {
+        @Override
+        public void onResult(@NonNull DriveFolder.DriveFolderResult result) {
+            if (!result.getStatus().isSuccess()) {
+                Log.d(TAG, "Error creating folder");
+                return;
+            }
+
+            Log.d(TAG, "Folder successfully created.");
+        }
+    };
+
+    private void loadData() {
+
+        firebase.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Map map = dataSnapshot.getValue(Map.class);
+
+                if (map.size()>0) {
+                    String albumId = map.get("AlbumId").toString();
+                    String MediaId = map.get("MediaId").toString();
+                    DriveId drive_id = DriveId.decodeFromString(map.get("URL").toString());
+                    //String url = map.get("URL").toString();
+                    String caption = map.get("caption").toString();
+                    String latitude = map.get("Latitude").toString();
+                    String longitude = map.get("Longitude").toString();
+
+                    Log.i("values fetched ", albumId + " " + MediaId
+                            + " " + drive_id.encodeToString() + " " + caption + " " + latitude + " "
+                            + longitude);
+
+                    DriveFile file = drive_id.asDriveFile();
+                    file.getMetadata(googleApiClient).setResultCallback(metaDataCallback);
+                }
+            }
+
+            final private ResultCallback<DriveResource.MetadataResult> metaDataCallback =
+                    new ResultCallback<DriveResource.MetadataResult>() {
+                        @Override
+                        public void onResult(@NonNull DriveResource.MetadataResult result) {
+                            if (!result.getStatus().isSuccess()) {
+                                Log.d(TAG, "Problem while trying to fetch metadata");
+                                return;
+                            }
+
+                            Metadata metadata = result.getMetadata();
+                            Log.d(TAG, "Title: " + metadata.getTitle()
+                            + " id: " + metadata.getEmbedLink());
+                        }
+                    };
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        db = FirebaseDatabase.getInstance();
+    }
+
     public void openImageChooser() {
         Intent intent = new Intent();
         intent.setType("image/*");
@@ -226,7 +371,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public void onLocationChanged(Location location) {
         latitude = location.getLatitude();
+        Toast.makeText(this, "lat " + latitude, Toast.LENGTH_SHORT).show();
         longitude = location.getLongitude();
+        Toast.makeText(this, "longitude " + longitude, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -514,6 +661,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         title.setTypeface(typeface);
         title.setTextSize(24);
         title.setText(R.string.videoDialogTitle);
@@ -526,6 +674,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                strCaption = txtCaption.getText().toString();
+                Log.d(TAG, "caption: " + strCaption);
+
                 File sdcard = new File(
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                         VIDEO_DIR_NAME);
@@ -570,6 +721,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setView(dialogView);
 
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
         title.setTypeface(typeface);
         title.setTextSize(24);
@@ -582,6 +734,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                strCaption = txtCaption.getText().toString();
+                Log.d(TAG, "caption: " + strCaption);
+
                 fileOperation = true;
 
                 Drive.DriveApi.newDriveContents(googleApiClient)
@@ -612,6 +767,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setView(dialogView);
 
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
         title.setTypeface(typeface);
         title.setTextSize(24);
@@ -626,6 +782,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                strCaption = txtCaption.getText().toString();
+                Log.d(TAG, "caption: " + strCaption);
+
                 fileOperation = true;
 
                 Drive.DriveApi.newDriveContents(googleApiClient)
@@ -686,12 +845,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         final View dialogView = layoutInflater.inflate(R.layout.dialog_layout, null);
         dialogBuilder.setView(dialogView);
 
-        //final EditText caption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
+        final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final ImageView photoImg = (ImageView) dialogView.findViewById(R.id.imgPhoto);
         Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/Roboto-Regular.ttf");
         final TextView title = (TextView) dialogView.findViewById(R.id.txtTitle);
         title.setTypeface(typeface);
         title.setTextSize(24);
+
 
         bmp1 = bmp;
         photoImg.setImageBitmap(bmp);
@@ -701,6 +861,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         fileOperation = true;
+                        strCaption = txtCaption.getText().toString();
+                        Log.d(TAG, "caption: " + strCaption);
 
                         Drive.DriveApi.newDriveContents(googleApiClient)
                                 .setResultCallback(driveContentsCallback);
@@ -708,11 +870,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         dialog.cancel();
                     }
                 });
-
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        DatabaseReference ref = database.getReference("message");
-
-        ref.setValue("Hello World!!!");
 
         dialogBuilder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
             @Override
@@ -845,18 +1002,18 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     byteStream.write(bytes);
                     outputStream.write(byteStream.toByteArray());
                 } catch (Exception ex) {
-                    Log.e("Error in video upload", ex.getMessage());
+                    System.out.println("Error in video upload" + ex.getMessage());
                 }
 
                 if (outputStream != null) {
+                    DriveFolder driveFolder = folderDriveId.asDriveFolder();
                     MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                             .setTitle("videoNew_" + System.currentTimeMillis() + ".mp4")
                             .setMimeType("video/mp4")
                             .setStarred(true).build();
 
-                    Drive.DriveApi.getRootFolder(googleApiClient)
-                            .createFile(googleApiClient, changeSet, driveContents)
-                            .setResultCallback(fileCallBack);
+                    driveFolder.createFile(googleApiClient, changeSet, driveContents)
+                            .setResultCallback(fileVideoCallBack);
 
 
                     //openFileFromDrive();
@@ -902,13 +1059,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Log.e("Error in image upload", ex.getMessage());
                 }
 
+                DriveFolder driveFolder = folderDriveId.asDriveFolder();
                 MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                         .setTitle("imageFromGallery_" + System.currentTimeMillis() + ".png")
                         .setMimeType("image/png")
                         .setStarred(true).build();
 
-                Drive.DriveApi.getRootFolder(googleApiClient)
-                        .createFile(googleApiClient, changeSet, driveContents)
+                driveFolder.createFile(googleApiClient, changeSet, driveContents)
                         .setResultCallback(fileCallBack);
 
 
@@ -954,14 +1111,15 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Log.e("Error in video upload", ex.getMessage());
                 }
 
+                DriveFolder driveFolder = folderDriveId.asDriveFolder();
+
                 MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                         .setTitle("videoFromGallery_" + System.currentTimeMillis() + ".mp4")
                         .setMimeType("video/mp4")
                         .setStarred(true).build();
 
-                Drive.DriveApi.getRootFolder(googleApiClient)
-                        .createFile(googleApiClient, changeSet, driveContents)
-                        .setResultCallback(fileCallBack);
+                driveFolder.createFile(googleApiClient, changeSet, driveContents)
+                        .setResultCallback(fileVideoCallBack);
 
 
                 //openFileFromDrive();
@@ -975,6 +1133,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         new Thread() {
             @Override
             public void run() {
+
                 OutputStream outputStream = driveContents.getOutputStream();
 
                 try {
@@ -1007,14 +1166,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Log.e("Error in image upload", ex.getMessage());
                 }
 
+
+
                 if (outputStream != null) {
+                    DriveFolder driveFolder = folderDriveId.asDriveFolder();
+
                     MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                             .setTitle("IMG_" + System.currentTimeMillis() + ".png")
                             .setMimeType("image/png")
                             .setStarred(true).build();
 
-                    Drive.DriveApi.getRootFolder(googleApiClient)
-                            .createFile(googleApiClient, changeSet, driveContents)
+                    driveFolder.createFile(googleApiClient, changeSet, driveContents)
                             .setResultCallback(fileCallBack);
 
 
@@ -1033,13 +1195,152 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         return;
                     }
 
-
-
                     System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
                     Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
                             , Toast.LENGTH_SHORT).show();
+
+                    //String dateFormat = new SimpleDateFormat("yyyyMMdd-HH:mm:ss").format(new Date());
+                    addValues(result.getDriveFile().getDriveId().encodeToString(),
+                            strCaption,
+                            2000.0,
+                            160.45,
+                            "I");
                 }
             };
+
+
+    private void addValues(String url, String caption, double latitude, double longitude,
+                           String mediaIdentify) {
+        Random random = new Random();
+
+        Toast.makeText(this, "albumId123456: "+albumid, Toast.LENGTH_SHORT).show();
+        Log.i("Album123456 ", albumid);
+
+        Map<String, String> map = new HashMap<>();
+        //Toast.makeText(this, "albumId"+albumid, Toast.LENGTH_SHORT).show();
+
+        if (albumid.equalsIgnoreCase("")) {
+            map.put("AlbumId", Integer.toString(random.nextInt(1081) + 20));
+        } else {
+            map.put("AlbumId", albumid);
+        }
+
+        map.put("MediaId", mediaIdentify+"_"+Integer.toString(random.nextInt(1081) + 20));
+        map.put("URL", url);
+        map.put("caption", caption);
+        map.put("Latitude", Double.toString(latitude));
+        map.put("Longitude", Double.toString(longitude));
+
+        firebase.push().setValue(map);
+    }
+
+    private void loadLatLong() {
+        albumid = "";
+        firebase.addChildEventListener(new ChildEventListener() {
+
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Map map = dataSnapshot.getValue(Map.class);
+
+                double lat = Double.parseDouble(map.get("Latitude").toString());
+                double longi = Double.parseDouble(map.get("Longitude").toString());
+
+                Toast.makeText(HomeActivity.this, "lat: " + lat + "long: " + longi, Toast.LENGTH_SHORT).show();
+                Log.i("values ", "lat: " + lat + "long: " + longi);
+                String album = calcDistance(2000.0, 160.45, lat, longi);
+                Random random = new Random();
+
+                if (map.size() > 0) {
+                    if (album.equalsIgnoreCase("same")) {
+                       albumid = map.get("AlbumId").toString();
+                        Toast.makeText(HomeActivity.this,
+                                "album id: " + albumid, Toast.LENGTH_SHORT).show();
+                        Log.d(TAG,"album id:: "+ albumid);
+
+                    }
+                } else {
+                    albumid = Integer.toString(random.nextInt(1081) + 20);
+                }
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+
+        Log.d(TAG,"album id1 "+ albumid);
+    }
+
+    private String calcDistance(double lat1, double lon1, double lat2, double lon2) {
+        double theta = lon1 - lon2;
+        double dist = Math.sin(deg2rad(lat1))
+                * Math.sin(deg2rad(lat2))
+                + Math.cos(deg2rad(lat1))
+                * Math.cos(deg2rad(lat2))
+                * Math.cos(deg2rad(theta));
+
+        dist = Math.acos(dist);
+        dist = rad2deg(dist);
+        dist = dist * 60 * 1.1515;
+        dist = dist * 1.609344;
+
+        Log.d(TAG, "Distance -> " + dist);
+
+        String albumid;
+        if (dist < 1) {
+            albumid = "same";
+        } else {
+            albumid = "different";
+        }
+
+        return albumid;
+    }
+
+    private static double deg2rad(double deg) {
+        return (deg * Math.PI / 180.0);
+    }
+
+    private static double rad2deg(double rad) {
+        return (rad * 180 / Math.PI);
+    }
+
+    final private ResultCallback<DriveFolder.DriveFileResult> fileVideoCallBack = new ResultCallback<DriveFolder.DriveFileResult>() {
+        @Override
+        public void onResult(@NonNull DriveFolder.DriveFileResult result) {
+            if (!result.getStatus().isSuccess()) {
+                Log.e("Drive Config: ", "Error while trying to create the file");
+                return;
+            }
+
+
+
+            System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
+            Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
+                    , Toast.LENGTH_SHORT).show();
+
+            addValues(result.getDriveFile().getDriveId().toString(),
+                    strCaption,
+                    2000.0,
+                    160.45,
+                    "V");
+        }
+    };
 
     @Override
     public void onConnectionSuspended(int i) {
@@ -1065,8 +1366,26 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        //Toast.makeText(this, "Connected", Toast.LENGTH_SHORT).show();
+        MetadataChangeSet changeSet = new MetadataChangeSet.Builder().setTitle("IRecall").build();
+        Drive.DriveApi.getRootFolder(getGoogleApiClient()).createFolder(
+                getGoogleApiClient(), changeSet).setResultCallback(folderCallback);
+        Drive.DriveApi.fetchDriveId(getGoogleApiClient(), "0B9PT08bK2TbVMThXckNqMlRHOVE")
+                .setResultCallback(idCallback);
     }
+
+    final private ResultCallback<DriveApi.DriveIdResult> idCallback = new
+            ResultCallback<DriveApi.DriveIdResult>() {
+                @Override
+                public void onResult(@NonNull DriveApi.DriveIdResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        Log.d(TAG, "Can't find drive id");
+                    }
+
+                    folderDriveId = result.getDriveId();/*
+                    Drive.DriveApi.newDriveContents(getGoogleApiClient())
+                            .setResultCallback(driveContentsCallback1);*/
+                }
+            };
 
     @Override
     public void onBackPressed(){
@@ -1131,19 +1450,26 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         int id = item.getItemId();
 
         if (id == R.id.nav_logout) {
-            Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-
-            SharedPreferences.Editor editor = SaveSharedPref.getSharedPreferences(getApplicationContext()).edit();
-            editor.clear();
-            editor.apply();
-            finish();
-
-            startActivity(intent);
+            if (googleApiClient.isConnected()) {
+                logoutFromGoogle();
+            }
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
 
         return true;
+    }
+
+    private void logoutFromGoogle() {
+        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+
+        SharedPreferences.Editor editor = SaveSharedPref.getSharedPreferences(getApplicationContext()).edit();
+
+        editor.clear();
+        editor.apply();
+        finish();
+
+        startActivity(intent);
     }
 }
