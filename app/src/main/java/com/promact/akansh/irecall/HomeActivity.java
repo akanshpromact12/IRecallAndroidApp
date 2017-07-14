@@ -137,6 +137,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private FirebaseAuth mAuth;
     private FirebaseUser firebaseUser;
     private static final String TAG="HomeActivity";
+    private DriveId folderDriveId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -260,8 +261,23 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
 
         googleApiClient.connect();
-
     }
+
+    public GoogleApiClient getGoogleApiClient() {
+        return googleApiClient;
+    }
+
+    final ResultCallback<DriveFolder.DriveFolderResult> folderCallback = new ResultCallback<DriveFolder.DriveFolderResult>() {
+        @Override
+        public void onResult(@NonNull DriveFolder.DriveFolderResult result) {
+            if (!result.getStatus().isSuccess()) {
+                Log.d(TAG, "Error creating folder");
+                return;
+            }
+
+            Log.d(TAG, "Folder successfully created.");
+        }
+    };
 
     private void loadData() {
 
@@ -990,13 +1006,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 }
 
                 if (outputStream != null) {
+                    DriveFolder driveFolder = folderDriveId.asDriveFolder();
                     MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                             .setTitle("videoNew_" + System.currentTimeMillis() + ".mp4")
                             .setMimeType("video/mp4")
                             .setStarred(true).build();
 
-                    Drive.DriveApi.getRootFolder(googleApiClient)
-                            .createFile(googleApiClient, changeSet, driveContents)
+                    driveFolder.createFile(googleApiClient, changeSet, driveContents)
                             .setResultCallback(fileVideoCallBack);
 
 
@@ -1043,13 +1059,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Log.e("Error in image upload", ex.getMessage());
                 }
 
+                DriveFolder driveFolder = folderDriveId.asDriveFolder();
                 MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                         .setTitle("imageFromGallery_" + System.currentTimeMillis() + ".png")
                         .setMimeType("image/png")
                         .setStarred(true).build();
 
-                Drive.DriveApi.getRootFolder(googleApiClient)
-                        .createFile(googleApiClient, changeSet, driveContents)
+                driveFolder.createFile(googleApiClient, changeSet, driveContents)
                         .setResultCallback(fileCallBack);
 
 
@@ -1095,13 +1111,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Log.e("Error in video upload", ex.getMessage());
                 }
 
+                DriveFolder driveFolder = folderDriveId.asDriveFolder();
+
                 MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                         .setTitle("videoFromGallery_" + System.currentTimeMillis() + ".mp4")
                         .setMimeType("video/mp4")
                         .setStarred(true).build();
 
-                Drive.DriveApi.getRootFolder(googleApiClient)
-                        .createFile(googleApiClient, changeSet, driveContents)
+                driveFolder.createFile(googleApiClient, changeSet, driveContents)
                         .setResultCallback(fileVideoCallBack);
 
 
@@ -1116,6 +1133,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         new Thread() {
             @Override
             public void run() {
+
                 OutputStream outputStream = driveContents.getOutputStream();
 
                 try {
@@ -1148,14 +1166,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Log.e("Error in image upload", ex.getMessage());
                 }
 
+
+
                 if (outputStream != null) {
+                    DriveFolder driveFolder = folderDriveId.asDriveFolder();
+
                     MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                             .setTitle("IMG_" + System.currentTimeMillis() + ".png")
                             .setMimeType("image/png")
                             .setStarred(true).build();
 
-                    Drive.DriveApi.getRootFolder(googleApiClient)
-                            .createFile(googleApiClient, changeSet, driveContents)
+                    driveFolder.createFile(googleApiClient, changeSet, driveContents)
                             .setResultCallback(fileCallBack);
 
 
@@ -1299,28 +1320,27 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         return (rad * 180 / Math.PI);
     }
 
-    final private ResultCallback<DriveFolder.DriveFileResult> fileVideoCallBack = new
-            ResultCallback<DriveFolder.DriveFileResult>() {
-                @Override
-                public void onResult(@NonNull DriveFolder.DriveFileResult result) {
-                    if (!result.getStatus().isSuccess()) {
-                        Log.e("Drive Config: ", "Error while trying to create the file");
-                        return;
-                    }
+    final private ResultCallback<DriveFolder.DriveFileResult> fileVideoCallBack = new ResultCallback<DriveFolder.DriveFileResult>() {
+        @Override
+        public void onResult(@NonNull DriveFolder.DriveFileResult result) {
+            if (!result.getStatus().isSuccess()) {
+                Log.e("Drive Config: ", "Error while trying to create the file");
+                return;
+            }
 
 
 
-                    System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
-                    Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
-                            , Toast.LENGTH_SHORT).show();
+            System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
+            Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
+                    , Toast.LENGTH_SHORT).show();
 
-                    addValues(result.getDriveFile().getDriveId().toString(),
-                            strCaption,
-                            2000.0,
-                            160.45,
-                            "V");
-                }
-            };
+            addValues(result.getDriveFile().getDriveId().toString(),
+                    strCaption,
+                    2000.0,
+                    160.45,
+                    "V");
+        }
+    };
 
     @Override
     public void onConnectionSuspended(int i) {
@@ -1346,8 +1366,26 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        //Toast.makeText(this, "Connected", Toast.LENGTH_SHORT).show();
+        MetadataChangeSet changeSet = new MetadataChangeSet.Builder().setTitle("IRecall").build();
+        Drive.DriveApi.getRootFolder(getGoogleApiClient()).createFolder(
+                getGoogleApiClient(), changeSet).setResultCallback(folderCallback);
+        Drive.DriveApi.fetchDriveId(getGoogleApiClient(), "0B9PT08bK2TbVMThXckNqMlRHOVE")
+                .setResultCallback(idCallback);
     }
+
+    final private ResultCallback<DriveApi.DriveIdResult> idCallback = new
+            ResultCallback<DriveApi.DriveIdResult>() {
+                @Override
+                public void onResult(@NonNull DriveApi.DriveIdResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        Log.d(TAG, "Can't find drive id");
+                    }
+
+                    folderDriveId = result.getDriveId();/*
+                    Drive.DriveApi.newDriveContents(getGoogleApiClient())
+                            .setResultCallback(driveContentsCallback1);*/
+                }
+            };
 
     @Override
     public void onBackPressed(){
