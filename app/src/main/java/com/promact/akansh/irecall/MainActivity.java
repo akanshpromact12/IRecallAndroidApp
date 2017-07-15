@@ -1,5 +1,6 @@
 package com.promact.akansh.irecall;
 
+        import android.app.ProgressDialog;
         import android.content.Intent;
         import android.content.pm.PackageManager;
         import android.net.Uri;
@@ -38,6 +39,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private static final int REQUEST_PERMISSIONS = 20;
     private FirebaseAuth mAuth;
     private FirebaseUser user;
+    public ProgressDialog mProgressDialog;
 
     @Override
     protected void onStart() {
@@ -138,33 +140,19 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
         if (requestCode == RC_SIGN_IN){
             GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            Log.d(TAG, "In google sing in method");
             handleSignInResult(result);
         }
     }
 
     public void handleSignInResult(GoogleSignInResult result){
-        Log.d(TAG, "handleSignInResult" + result.isSuccess());
+        Log.d(TAG, "handleSignInResult " + result.isSuccess());
 
         if (result.isSuccess()){
-            GoogleSignInAccount account = result.getSignInAccount();
+            final GoogleSignInAccount account = result.getSignInAccount();
+
+            Log.d(TAG, "before firebase sign in method");
             firebaseAuthWithGoogle(account);
-
-            if (account != null){
-                idToken = account.getIdToken();
-                name = account.getDisplayName();
-                email = account.getEmail();
-                photoUri = account.getPhotoUrl();
-            }
-
-            Intent intent = new Intent(MainActivity.this, HomeActivity.class);
-            intent.putExtra("idToken", idToken);
-            intent.putExtra("name", name);
-            intent.putExtra("email", email);
-            intent.putExtra("photoUri", photoUri.toString());
-            //intent.putExtra("userId", user.getUid());
-            SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString()/*, user.getUid()*/);
-
-            startActivity(intent);
         }
 
         else{
@@ -172,9 +160,26 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         }
     }
 
-    private void firebaseAuthWithGoogle(GoogleSignInAccount account) {
-        Log.i("IRecall firebase auth: ", "-----------------" + account.getId());
+    public void showProgressDialog() {
+        if (mProgressDialog == null) {
+            mProgressDialog = new ProgressDialog(this);
+            mProgressDialog.setMessage(getString(R.string.loading));
+            mProgressDialog.setIndeterminate(true);
+        }
 
+        mProgressDialog.show();
+    }
+
+    public void hideProgressDialog() {
+        if (mProgressDialog != null && mProgressDialog.isShowing()) {
+            mProgressDialog.dismiss();
+        }
+    }
+
+    private void firebaseAuthWithGoogle(final GoogleSignInAccount account) {
+        Log.d(TAG, "-----------------" + account.getId());
+        Log.d(TAG, "In firebase sing in method");
+        showProgressDialog();
         AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
@@ -182,12 +187,33 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         Log.i("IRecall user: ", "=============== completed===============");
                         if (task.isSuccessful()) {
-                            FirebaseUser user = mAuth.getCurrentUser();
-                            Log.i("IRecall user: ", "users: " + user);
+                            user = mAuth.getCurrentUser();
+
+                            if (account != null){
+                                idToken = account.getIdToken();
+                                name = account.getDisplayName();
+                                email = account.getEmail();
+                                photoUri = account.getPhotoUrl();
+                            }
+
+                            Log.d(TAG, "id_of: " + user.getUid());
+
+                            Intent intent = new Intent(MainActivity.this, HomeActivity.class);
+                            intent.putExtra("idToken", idToken);
+                            intent.putExtra("name", name);
+                            intent.putExtra("email", email);
+                            intent.putExtra("photoUri", photoUri.toString());
+                            intent.putExtra("userId", user.getUid());
+                            SaveSharedPref.setPrefs(getApplicationContext(), idToken, name, email, photoUri.toString(), user.getUid());
+
+                            startActivity(intent);
+                            Log.i(TAG, "usersABC: " + user);
                         } else {
                             Toast.makeText(MainActivity.this, "Authentication unsuccessful",
                                     Toast.LENGTH_SHORT).show();
                         }
+
+                        hideProgressDialog();
                     }
 
                 });

@@ -15,16 +15,15 @@
     tools:context="com.promact.akansh.irecall.MainActivity"
     tools:showIn="@layout/app_bar_main">
 
-    <TextView
-        android:id="@+id/txtView1"
+    <fragment
         android:layout_width="match_parent"
-        android:text="@string/welcome_msg_content"
-        android:textSize="24sp"
-        android:textColor="@android:color/black"
         android:layout_height="wrap_content"
-        android:textAlignment="center"
-        android:layout_alignParentStart="true"
-        android:elevation="10dp"/>
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_below="@+id/txtView1"
+        android:layout_alignParentStart="false"
+        android:layout_marginStart="0dp"
+        android:layout_marginTop="0dp"
+        android:id="@+id/googleMap" />
 
     <com.github.clans.fab.FloatingActionMenu
         android:id="@+id/floating_action_menu"
@@ -61,15 +60,5 @@
             fab:fab_size="mini" />
 
     </com.github.clans.fab.FloatingActionMenu>
-
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:inputType="textMultiLine"
-        android:ems="10"
-        android:id="@+id/txtCaption"
-        android:layout_marginBottom="93dp"
-        android:visibility="invisible"
-        android:layout_centerHorizontal="true" />
 
 </RelativeLayout>

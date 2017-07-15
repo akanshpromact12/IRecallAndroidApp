@@ -48,17 +48,32 @@ import com.firebase.client.FirebaseError;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
 import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInApi;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResolvingResultCallbacks;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.ResultCallbacks;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveResource;
 import com.google.android.gms.drive.Metadata;
 import com.google.android.gms.drive.events.ChangeListener;
+import com.google.android.gms.drive.query.Filters;
+import com.google.android.gms.drive.query.Query;
+import com.google.android.gms.drive.query.SearchableField;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
 import com.google.android.gms.drive.DriveApi;
@@ -70,6 +85,7 @@ import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.drive.OpenFileActivityBuilder;
 import com.google.android.gms.drive.events.CompletionEvent;
 import com.google.android.gms.drive.events.DriveEventService;
+import com.google.api.client.util.Maps;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
@@ -88,7 +104,7 @@ import java.util.Set;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
-public class HomeActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener , LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
+public class HomeActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener , LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, OnMapReadyCallback{
     static final int REQUEST_IMAGE_CAPTURE = 1;
     static final int REQUEST_VIDEO_CAPTURE = 2;
     private Uri videoUri;
@@ -138,6 +154,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private FirebaseUser firebaseUser;
     private static final String TAG="HomeActivity";
     private DriveId folderDriveId;
+    private GoogleMap map;
+    private DriveId folderId;
+    private String folderId1;
+    private GoogleApiClient mGoogleApiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -147,9 +167,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         mAuth = FirebaseAuth.getInstance();
 
         GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build();
-        GoogleApiClient googleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
+        mGoogleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
 
-        googleApiClient.connect();
+        mGoogleApiClient.connect();
 
         floatActionCamera = (FloatingActionButton) findViewById(R.id.menu_camera_option);
         floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
@@ -157,7 +177,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
 
         txt = (TextView) findViewById(R.id.txtView1);
-        caption = (EditText) findViewById(R.id.txtCaption);
+        //caption = (EditText) findViewById(R.id.txtCaption);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         strCaption = "";
         try{
@@ -168,22 +188,21 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         }
 
-        firebaseUser = mAuth.getCurrentUser();
-        Log.d(TAG, "user: " + firebaseUser.getUid());
+        //Log.d(TAG, "user: " + firebaseUser.getUid());
 
-        userId = firebaseUser.getUid();
+        //userId = firebaseUser.getUid();
 
         if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
             Intent intent = getIntent();
             name = intent.getStringExtra("name");
             email = intent.getStringExtra("email");
             photoUri = intent.getStringExtra("photoUri");
-            //userId = intent.getStringExtra("userId");
+            userId = intent.getStringExtra("userId");
         } else {
             name = SaveSharedPref.getUsername(getApplicationContext());
             email = SaveSharedPref.getEmail(getApplicationContext());
             photoUri = SaveSharedPref.getPhotoUri(getApplicationContext());
-            //userId = SaveSharedPref.getUserId(getApplicationContext());
+            userId = SaveSharedPref.getUserId(getApplicationContext());
 
             Toast.makeText(this, "logged in as: " + email, Toast.LENGTH_SHORT).show();
         }
@@ -191,7 +210,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         Toast.makeText(this, "userid: " + userId, Toast.LENGTH_SHORT).show();
         Firebase.setAndroidContext(getApplicationContext());
         firebase = new Firebase("https://irecall-4dcd0.firebaseio.com/" + userId);
-        loadData();
+
         loadLatLong();
 
         Log.d(TAG, "id:: " + albumid);
@@ -261,7 +280,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
 
         googleApiClient.connect();
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.googleMap);
+        mapFragment.getMapAsync(this);
     }
+
+    @Override
+    public void onMapReady(final GoogleMap googleMap) {
+        loadData(googleMap);
+        }
 
     public GoogleApiClient getGoogleApiClient() {
         return googleApiClient;
@@ -279,12 +307,15 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
     };
 
-    private void loadData() {
+    private void loadData(final GoogleMap googleMap) {
 
         firebase.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                Map map = dataSnapshot.getValue(Map.class);
+                final Map map = dataSnapshot.getValue(Map.class);
+                final double lat1 = latitude;
+                final double long1 = longitude;
+                LatLng currLatLng = new LatLng(lat1, long1);
 
                 if (map.size()>0) {
                     String albumId = map.get("AlbumId").toString();
@@ -292,15 +323,34 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     DriveId drive_id = DriveId.decodeFromString(map.get("URL").toString());
                     //String url = map.get("URL").toString();
                     String caption = map.get("caption").toString();
-                    String latitude = map.get("Latitude").toString();
-                    String longitude = map.get("Longitude").toString();
+                    final double lat_load = Double.parseDouble(map.get("Latitude").toString());
+                    final double long_load = Double.parseDouble(map.get("Longitude").toString());
 
                     Log.i("values fetched ", albumId + " " + MediaId
-                            + " " + drive_id.encodeToString() + " " + caption + " " + latitude + " "
-                            + longitude);
+                            + " " + drive_id.encodeToString() + " " + caption + " " + lat_load + " "
+                            + long_load);
+
+                    LatLng latLng = new LatLng(lat_load, long_load);
+                    googleMap.addMarker(new MarkerOptions().position(latLng).title("First Marker"));
+                    googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLatLng));
+
 
                     DriveFile file = drive_id.asDriveFile();
                     file.getMetadata(googleApiClient).setResultCallback(metaDataCallback);
+
+                    /*SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                            .findFragmentById(R.id.googleMap);
+                    mapFragment.getMapAsync(new OnMapReadyCallback() {
+                        @Override
+                        public void onMapReady(GoogleMap googleMap) {
+                            LatLng latLng = new LatLng(Double.parseDouble(map.get("Latitude").toString()),
+                                    Double.parseDouble(map.get("" +
+                                            "Longitude").toString()));
+                            LatLng currLoc = new LatLng(lat1, long1);
+                            googleMap.addMarker(new MarkerOptions().position(latLng).title("First Marker"));
+                            googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLoc));
+                        }
+                    });*/
                 }
             }
 
@@ -346,6 +396,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         super.onStart();
 
         db = FirebaseDatabase.getInstance();
+        firebaseUser = mAuth.getCurrentUser();
     }
 
     public void openImageChooser() {
@@ -1170,7 +1221,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 if (outputStream != null) {
                     DriveFolder driveFolder = folderDriveId.asDriveFolder();
-
                     MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                             .setTitle("IMG_" + System.currentTimeMillis() + ".png")
                             .setMimeType("image/png")
@@ -1367,10 +1417,62 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         MetadataChangeSet changeSet = new MetadataChangeSet.Builder().setTitle("IRecall").build();
-        Drive.DriveApi.getRootFolder(getGoogleApiClient()).createFolder(
-                getGoogleApiClient(), changeSet).setResultCallback(folderCallback);
-        Drive.DriveApi.fetchDriveId(getGoogleApiClient(), "0B9PT08bK2TbVMThXckNqMlRHOVE")
-                .setResultCallback(idCallback);
+        /*Drive.DriveApi.getRootFolder(getGoogleApiClient()).createFolder(
+                getGoogleApiClient(), changeSet).setResultCallback(folderCallback);*/
+        //check if folder exists
+
+        Query query = new Query.Builder()
+                .addFilter(Filters.and(Filters.eq(SearchableField.TITLE, "IRecall"),
+                        Filters.eq(SearchableField.TRASHED, false))).build();
+        Drive.DriveApi.query(getGoogleApiClient(), query)
+                .setResultCallback(new ResultCallback<DriveApi.MetadataBufferResult>() {
+                    @Override
+                    public void onResult(@NonNull DriveApi.MetadataBufferResult result) {
+                        if (!result.getStatus().isSuccess()) {
+                            Log.d(TAG, "Cannot create folder");
+                        } else {
+                            boolean folderFound = false;
+
+                            for (Metadata metadata : result.getMetadataBuffer()) {
+                                if (metadata.getTitle().equalsIgnoreCase("IRecall")) {
+                                    Log.d(TAG, "Folder found...");
+                                    folderId1 = metadata.getEmbedLink();
+                                    Log.d(TAG, "folderId: " + folderId1.split("=")[1]);
+                                    Drive.DriveApi.fetchDriveId(getGoogleApiClient(), folderId1.split("=")[1])
+                                            .setResultCallback(idCallback);
+                                    folderFound = true;
+                                    break;
+                                }
+                            }
+
+                            if (!folderFound) {
+                                Log.d(TAG, "Folder not found");
+
+                                MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                                        .setTitle("IRecall").build();
+                                Drive.DriveApi.getRootFolder(getGoogleApiClient())
+                                        .createFolder(getGoogleApiClient(), changeSet)
+                                        .setResultCallback(new ResultCallbacks<DriveFolder.DriveFolderResult>() {
+                                            @Override
+                                            public void onSuccess(@NonNull DriveFolder.DriveFolderResult result) {
+                                                Log.d(TAG, "Folder created successfully");
+                                                folderId1 = result.getDriveFolder().getDriveId().getResourceId();
+                                                Log.d(TAG, "folderId: " + folderId1);
+                                                Drive.DriveApi.fetchDriveId(getGoogleApiClient(), folderId1.toString())
+                                                        .setResultCallback(idCallback);
+                                            }
+
+                                            @Override
+                                            public void onFailure(@NonNull Status status) {
+                                                Log.d(TAG, "Folder created unsuccessfully");
+                                            }
+                            });
+                            }
+                        }
+                    }
+                });
+
+        //folderExistsCheck ends.
     }
 
     final private ResultCallback<DriveApi.DriveIdResult> idCallback = new
@@ -1381,7 +1483,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         Log.d(TAG, "Can't find drive id");
                     }
 
-                    folderDriveId = result.getDriveId();/*
+                    folderDriveId = result.getDriveId();
+                    Log.d(TAG, "Folder drive id: " + folderDriveId);
+                    /*
                     Drive.DriveApi.newDriveContents(getGoogleApiClient())
                             .setResultCallback(driveContentsCallback1);*/
                 }
@@ -1451,7 +1555,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         if (id == R.id.nav_logout) {
             if (googleApiClient.isConnected()) {
-                logoutFromGoogle();
+                signOut();
             }
         }
 
@@ -1461,15 +1565,38 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         return true;
     }
 
-    private void logoutFromGoogle() {
-        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+    private void signOut() {
+        // Firebase sign out
+        mAuth.signOut();
 
-        SharedPreferences.Editor editor = SaveSharedPref.getSharedPreferences(getApplicationContext()).edit();
+        // Google sign out
+        Auth.GoogleSignInApi.signOut(mGoogleApiClient).setResultCallback(
+                new ResultCallbacks<Status>() {
+                    @Override
+                    public void onSuccess(@NonNull Status status) {
+                        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
 
-        editor.clear();
-        editor.apply();
-        finish();
+                        SharedPreferences.Editor editor = SaveSharedPref.getSharedPreferences(getApplicationContext()).edit();
 
-        startActivity(intent);
+                        editor.clear();
+                        editor.apply();
+                        finish();
+
+                        startActivity(intent);
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Status status) {
+                        Log.d(TAG, "Logout unsuccessful");
+                    }
+                }
+        );/*
+        Auth.GoogleSignInApi.signOut(googleApiClient).setResultCallback(
+                new ResultCallback<Status>() {
+                    @Override
+                    public void onResult(@NonNull Status status) {
+
+                    }
+                });*/
     }
 }
