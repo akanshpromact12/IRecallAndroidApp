@@ -48,34 +48,25 @@ import com.firebase.client.FirebaseError;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
 import com.google.android.gms.auth.api.Auth;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInApi;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.ResolvingResultCallbacks;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.ResultCallbacks;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveResource;
 import com.google.android.gms.drive.Metadata;
-import com.google.android.gms.drive.events.ChangeListener;
 import com.google.android.gms.drive.query.Filters;
 import com.google.android.gms.drive.query.Query;
 import com.google.android.gms.drive.query.SearchableField;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpResponse;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
 import com.google.android.gms.drive.DriveFile;
@@ -83,24 +74,17 @@ import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.drive.OpenFileActivityBuilder;
-import com.google.android.gms.drive.events.CompletionEvent;
-import com.google.android.gms.drive.events.DriveEventService;
-import com.google.api.client.util.Maps;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.OutputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -114,8 +98,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private String photoUri;
     private String videoUriStr;
     private TextView txt;
-    private EditText caption;
-    private static String albumID1;
     double latitude;
     double longitude;
     private static String fileName;
@@ -127,25 +109,15 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private boolean fileOperation = false;
     private Uri selectedVideoUri;
     private Uri selectedImageUri;
-    private File photoFile;
-    private File storage;
-    private Uri imageUri;
-    private String uriPath;
-    private String img;
     private String pathVideoGallery;
     private String pathImgGallery;
     private static final int MEDIA_TYPE_VIDEO = 200;
     private static final String VIDEO_DIR_NAME = "videoDir";
-    private static final String IMAGE_DIR_NAME = "images";
     private FloatingActionMenu floatingActionMenu;
     private FloatingActionButton floatActionGallery;
     private FloatingActionButton floatActionCamera;
-    private boolean doubleBackToExitPressedOnce = false;
     private FirebaseDatabase db;
-    private FirebaseAuth firebaseAuth;
-    private FirebaseUser user;
     private Firebase firebase;
-    private DatabaseReference dbRef;
     private LocationManager locationManager;
     private String albumid;
     private String strCaption;
@@ -154,8 +126,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private FirebaseUser firebaseUser;
     private static final String TAG="HomeActivity";
     private DriveId folderDriveId;
-    private GoogleMap map;
-    private DriveId folderId;
     private String folderId1;
     private GoogleApiClient mGoogleApiClient;
 
@@ -294,18 +264,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     public GoogleApiClient getGoogleApiClient() {
         return googleApiClient;
     }
-
-    final ResultCallback<DriveFolder.DriveFolderResult> folderCallback = new ResultCallback<DriveFolder.DriveFolderResult>() {
-        @Override
-        public void onResult(@NonNull DriveFolder.DriveFolderResult result) {
-            if (!result.getStatus().isSuccess()) {
-                Log.d(TAG, "Error creating folder");
-                return;
-            }
-
-            Log.d(TAG, "Folder successfully created.");
-        }
-    };
 
     private void loadData(final GoogleMap googleMap) {
 
@@ -521,9 +479,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public static long getFileSize(File file) {
-        long size = file.length();
-
-        return size;
+        return file.length();
     }
 
     @Override
@@ -1030,7 +986,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             VIDEO_DIR_NAME);
                     byte[] bytes = null;
                     FileInputStream fis;
-                    long mbSize = 0;
 
                     if (sdcard.exists()) {
                         File fileList[] = sdcard.listFiles();
@@ -1416,9 +1371,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        MetadataChangeSet changeSet = new MetadataChangeSet.Builder().setTitle("IRecall").build();
-        /*Drive.DriveApi.getRootFolder(getGoogleApiClient()).createFolder(
-                getGoogleApiClient(), changeSet).setResultCallback(folderCallback);*/
         //check if folder exists
 
         Query query = new Query.Builder()
@@ -1458,7 +1410,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                                 Log.d(TAG, "Folder created successfully");
                                                 folderId1 = result.getDriveFolder().getDriveId().getResourceId();
                                                 Log.d(TAG, "folderId: " + folderId1);
-                                                Drive.DriveApi.fetchDriveId(getGoogleApiClient(), folderId1.toString())
+                                                Drive.DriveApi.fetchDriveId(getGoogleApiClient(), folderId1)
                                                         .setResultCallback(idCallback);
                                             }
 

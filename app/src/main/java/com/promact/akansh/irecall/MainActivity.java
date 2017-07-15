@@ -18,7 +18,6 @@ package com.promact.akansh.irecall;
         import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
         import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
         import com.google.android.gms.auth.api.signin.GoogleSignInResult;
-        import com.google.android.gms.auth.api.signin.SignInAccount;
         import com.google.android.gms.common.ConnectionResult;
         import com.google.android.gms.common.api.GoogleApiClient;
         import com.google.android.gms.tasks.OnCompleteListener;
@@ -189,12 +188,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                         if (task.isSuccessful()) {
                             user = mAuth.getCurrentUser();
 
-                            if (account != null){
-                                idToken = account.getIdToken();
-                                name = account.getDisplayName();
-                                email = account.getEmail();
-                                photoUri = account.getPhotoUrl();
-                            }
+                            idToken = account.getIdToken();
+                            name = account.getDisplayName();
+                            email = account.getEmail();
+                            photoUri = account.getPhotoUrl();
 
                             Log.d(TAG, "id_of: " + user.getUid());
 
