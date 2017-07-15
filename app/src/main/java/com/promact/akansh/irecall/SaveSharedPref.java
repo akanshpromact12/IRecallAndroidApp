@@ -18,14 +18,14 @@ class SaveSharedPref
         return PreferenceManager.getDefaultSharedPreferences(context);
     }
 
-    static void setPrefs(Context context, String idToken, String username, String email, String photoUri/*, String userId*/)
+    static void setPrefs(Context context, String idToken, String username, String email, String photoUri, String userId)
     {
         Editor editor = getSharedPreferences(context).edit();
         editor.putString(PREF_ID_TOKEN, idToken);
         editor.putString(PREF_USERNAME, username);
         editor.putString(PREF_EMAIL, email);
         editor.putString(PREF_PHOTO_URI, photoUri);
-        //editor.putString(PREF_USERID, userId);
+        editor.putString(PREF_USERID, userId);
         editor.apply();
     }
 
