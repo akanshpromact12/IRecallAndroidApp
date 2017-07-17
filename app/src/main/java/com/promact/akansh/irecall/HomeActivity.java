@@ -8,7 +8,9 @@ import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -30,6 +32,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -65,7 +68,10 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
@@ -81,7 +87,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -128,11 +137,19 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private DriveId folderDriveId;
     private String folderId1;
     private GoogleApiClient mGoogleApiClient;
+    private String resourceUrl;
+    private SupportMapFragment mapFragment;
+    private URL imgMap;
+    private String imgCaption;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_main);
+
+        mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.googleMap);
+        mapFragment.getMapAsync(this);
 
         mAuth = FirebaseAuth.getInstance();
 
@@ -147,7 +164,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
 
         txt = (TextView) findViewById(R.id.txtView1);
-        //caption = (EditText) findViewById(R.id.txtCaption);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         strCaption = "";
         try{
@@ -157,10 +173,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
 
         }
-
-        //Log.d(TAG, "user: " + firebaseUser.getUid());
-
-        //userId = firebaseUser.getUid();
 
         if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
             Intent intent = getIntent();
@@ -250,22 +262,19 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
 
         googleApiClient.connect();
-
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.googleMap);
-        mapFragment.getMapAsync(this);
     }
 
     @Override
     public void onMapReady(final GoogleMap googleMap) {
-        loadData(googleMap);
-        }
+        final LayoutInflater layoutInflater = this.getLayoutInflater();
+        loadData(googleMap, layoutInflater);
+    }
 
     public GoogleApiClient getGoogleApiClient() {
         return googleApiClient;
     }
 
-    private void loadData(final GoogleMap googleMap) {
+    private void loadData(final GoogleMap googleMap, final LayoutInflater layoutInflater) {
 
         firebase.addChildEventListener(new ChildEventListener() {
             @Override
@@ -276,56 +285,134 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 LatLng currLatLng = new LatLng(lat1, long1);
 
                 if (map.size()>0) {
+                    DriveFile file = DriveId.decodeFromString(map.get("URL").toString())
+                            .asDriveFile();
+
+                    file.getMetadata(googleApiClient).setResultCallback(metaDataCallback);
                     String albumId = map.get("AlbumId").toString();
                     String MediaId = map.get("MediaId").toString();
                     DriveId drive_id = DriveId.decodeFromString(map.get("URL").toString());
-                    //String url = map.get("URL").toString();
-                    String caption = map.get("caption").toString();
-                    final double lat_load = Double.parseDouble(map.get("Latitude").toString());
-                    final double long_load = Double.parseDouble(map.get("Longitude").toString());
+                    final String caption = map.get("caption").toString();
+                    Log.d(TAG, "drive id encode"+drive_id.asDriveResource()
+                            .getMetadata(getGoogleApiClient()));
+                    final double lat_load = Double.parseDouble(map.get("Latitude")
+                            .toString());
+                    final double long_load = Double.parseDouble(map.get("Longitude")
+                            .toString());
 
                     Log.i("values fetched ", albumId + " " + MediaId
                             + " " + drive_id.encodeToString() + " " + caption + " " + lat_load + " "
                             + long_load);
 
                     LatLng latLng = new LatLng(lat_load, long_load);
-                    googleMap.addMarker(new MarkerOptions().position(latLng).title("First Marker"));
-                    googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                    Log.d(TAG, "LatLng" + latLng);
+                    Toast.makeText(HomeActivity.this,
+                            "map Ready", Toast.LENGTH_SHORT).show();
 
-
-                    DriveFile file = drive_id.asDriveFile();
-                    file.getMetadata(googleApiClient).setResultCallback(metaDataCallback);
-
-                    /*SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                            .findFragmentById(R.id.googleMap);
-                    mapFragment.getMapAsync(new OnMapReadyCallback() {
+                    /*googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
                         @Override
-                        public void onMapReady(GoogleMap googleMap) {
-                            LatLng latLng = new LatLng(Double.parseDouble(map.get("Latitude").toString()),
-                                    Double.parseDouble(map.get("" +
-                                            "Longitude").toString()));
-                            LatLng currLoc = new LatLng(lat1, long1);
-                            googleMap.addMarker(new MarkerOptions().position(latLng).title("First Marker"));
-                            googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLoc));
+                        public View getInfoWindow(Marker marker) {
+                            return null;
                         }
-                    });*/
-                }
-            }
 
-            final private ResultCallback<DriveResource.MetadataResult> metaDataCallback =
-                    new ResultCallback<DriveResource.MetadataResult>() {
                         @Override
-                        public void onResult(@NonNull DriveResource.MetadataResult result) {
-                            if (!result.getStatus().isSuccess()) {
-                                Log.d(TAG, "Problem while trying to fetch metadata");
-                                return;
+                        public View getInfoContents(Marker marker) {
+                            View view = getLayoutInflater().inflate(R.layout.map_dialog, null);
+                            try {
+                                ImageView imageView = (ImageView) view.findViewById(R.id.imgPhotoMap);
+                                TextView textView = (TextView) view.findViewById(R.id.captionMap);
+
+                                URL url = new URL(resourceUrl);
+                                HttpURLConnection conn = (HttpURLConnection)
+                                        url.openConnection();
+                                conn.setDoInput(true);
+                                conn.connect();
+
+                                InputStream inputStream = conn.getInputStream();
+                                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+                                imageView.setImageDrawable(getDrawable(R.drawable.login_background));
+                                textView.append(" " + map.get("caption").toString());
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
                             }
 
-                            Metadata metadata = result.getMetadata();
-                            Log.d(TAG, "Title: " + metadata.getTitle()
-                            + " id: " + metadata.getEmbedLink());
+                            return view;
                         }
-                    };
+                    });*/
+                    googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
+                        @Override
+                        public View getInfoWindow(Marker marker) {
+                            return null;
+                        }
+
+                        @Override
+                        public View getInfoContents(Marker marker) {
+                            View view = getLayoutInflater() .inflate(
+                                    R.layout.map_dialog, null);
+                            ImageView imageView = (ImageView) view
+                                    .findViewById(R.id.imgPhotoMap);
+                            imageView.setImageDrawable(getDrawable(R.drawable
+                            .alert));
+                            TextView snippet;
+                            snippet = (TextView) view.findViewById
+                                    (R.id.titleMarker);
+
+                            snippet.setText(marker.getTitle());
+
+                            return view;
+                        }
+                    });
+                    googleMap.addMarker(new MarkerOptions().position(latLng)
+                            .title(map.get("caption").toString()));
+
+                   /* googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                        @Override
+                        public boolean`mageDialogTitle);
+
+                            //final EditText caption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
+                            final ImageView photoImg = (ImageView) dialogView.findViewById(R.id.imgPhoto);
+
+                            //photoImg.setImageURI(bitmap);
+                            dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    strCaption = txtCaption.getText().toString();
+                                    Log.d(TAG, "caption: " + strCaption);
+
+                                    fileOperation = true;
+
+                                    Drive.DriveApi.newDriveContents(googleApiClient)
+                                            .setResultCallback(driveGalleryContentsCallback);
+
+                                    AlertDialog alert = dialogBuilder.create();
+                                    alert.cancel();
+
+                                }
+                            });
+
+                            dialogBuilder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    dialog.cancel();
+                                }
+                            });
+
+                            AlertDialog alertDialog = dialogBuilder.create();
+                            alertDialog.show();
+                            if (marker.isInfoWindowShown()) {
+                                marker.hideInfoWindow();
+                            } else if (!marker.isInfoWindowShown()) {
+                                marker.showInfoWindow();
+                            }
+                            Log.d(TAG, "resource: " + resourceUrl);
+                            return true;
+                        }});*/
+
+                    //marker.showInfoWindow();
+                    googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                }
+            }
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
@@ -348,6 +435,23 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             }
         });
     }
+
+    final private ResultCallback<DriveResource.MetadataResult> metaDataCallback =
+            new ResultCallback<DriveResource.MetadataResult>() {
+                @Override
+                public void onResult(@NonNull DriveResource.MetadataResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        Log.d(TAG, "Problem while trying to fetch metadata");
+                        return;
+                    }
+
+                    Metadata metadata = result.getMetadata();
+                    resourceUrl = metadata.getEmbedLink();
+                    Log.d(TAG, "Title: " + metadata.getTitle()
+                            + " id: " + metadata.getEmbedLink() + "\n"
+                            + resourceUrl);
+                }
+            };
 
     @Override
     protected void onStart() {
@@ -1207,8 +1311,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     //String dateFormat = new SimpleDateFormat("yyyyMMdd-HH:mm:ss").format(new Date());
                     addValues(result.getDriveFile().getDriveId().encodeToString(),
                             strCaption,
-                            2000.0,
-                            160.45,
+                            23.332168306311473,
+                            85.27587890625,
                             "I");
                 }
             };
@@ -1220,6 +1324,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         Toast.makeText(this, "albumId123456: "+albumid, Toast.LENGTH_SHORT).show();
         Log.i("Album123456 ", albumid);
+        Log.d(TAG, "lat " + latitude + " long: " + longitude);
 
         Map<String, String> map = new HashMap<>();
         //Toast.makeText(this, "albumId"+albumid, Toast.LENGTH_SHORT).show();
