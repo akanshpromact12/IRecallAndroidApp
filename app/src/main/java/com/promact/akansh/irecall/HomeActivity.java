@@ -1,5 +1,6 @@
 package com.promact.akansh.irecall;
 
+import android.app.ProgressDialog;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -59,30 +60,35 @@ import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.ResultCallbacks;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.drive.Drive;
-import com.google.android.gms.drive.DriveResource;
-import com.google.android.gms.drive.Metadata;
-import com.google.android.gms.drive.query.Filters;
-import com.google.android.gms.drive.query.Query;
-import com.google.android.gms.drive.query.SearchableField;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptor;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.drive.DriveApi;
-import com.google.android.gms.drive.DriveContents;
-import com.google.android.gms.drive.DriveFile;
 import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.drive.OpenFileActivityBuilder;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+//import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FileDownloadTask;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+import com.squareup.picasso.Picasso;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -101,7 +107,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     static final int REQUEST_IMAGE_CAPTURE = 1;
     static final int REQUEST_VIDEO_CAPTURE = 2;
     private Uri videoUri;
-    private String url;
+    //private String url;
     private String name;
     private String email;
     private String photoUri;
@@ -132,15 +138,21 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private String strCaption;
     private String userId;
     private FirebaseAuth mAuth;
-    private FirebaseUser firebaseUser;
+    //private FirebaseUser firebaseUser;
     private static final String TAG="HomeActivity";
     private DriveId folderDriveId;
     private String folderId1;
     private GoogleApiClient mGoogleApiClient;
     private String resourceUrl;
     private SupportMapFragment mapFragment;
-    private URL imgMap;
-    private String imgCaption;
+    //private URL imgMap;
+    //private String imgCaption;
+    //private String imageUrl;
+    private StorageReference storageReference;
+    private StorageReference imageStorage;
+    private StorageReference imageFolderStorage;
+    private Uri downloadUri;
+    private Uri downloadGalleryImgUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,6 +164,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         mapFragment.getMapAsync(this);
 
         mAuth = FirebaseAuth.getInstance();
+
+        storageReference = FirebaseStorage.getInstance().getReference();
 
         GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build();
         mGoogleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
@@ -207,7 +221,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         txtUname.setText(name);
         txtEmail.setText(email);
-        Glide.with(getApplicationContext()).load(photoUri).into(profilePic);
+        Glide.with(getApplicationContext())
+                .load(photoUri)
+                .centerCrop()
+                .into(profilePic);
         txt.setText(" ");
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -283,25 +300,24 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 final double lat1 = latitude;
                 final double long1 = longitude;
                 LatLng currLatLng = new LatLng(lat1, long1);
+                final StorageReference storeRef = storageReference;
+                FirebaseStorage storage = FirebaseStorage.getInstance();
+                final StorageReference storageRef = storage.getReferenceFromUrl("gs://irecall-4dcd0.appspot.com").child("IRecall/" + map.get("Filename").toString());
+                Log.d(TAG, "filename: " + map.get("Filename").toString());
+                final Marker marker;
 
                 if (map.size()>0) {
-                    DriveFile file = DriveId.decodeFromString(map.get("URL").toString())
-                            .asDriveFile();
-
-                    file.getMetadata(googleApiClient).setResultCallback(metaDataCallback);
                     String albumId = map.get("AlbumId").toString();
                     String MediaId = map.get("MediaId").toString();
-                    DriveId drive_id = DriveId.decodeFromString(map.get("URL").toString());
+                    final String filename = map.get("Filename").toString();
                     final String caption = map.get("caption").toString();
-                    Log.d(TAG, "drive id encode"+drive_id.asDriveResource()
-                            .getMetadata(getGoogleApiClient()));
                     final double lat_load = Double.parseDouble(map.get("Latitude")
                             .toString());
                     final double long_load = Double.parseDouble(map.get("Longitude")
                             .toString());
 
                     Log.i("values fetched ", albumId + " " + MediaId
-                            + " " + drive_id.encodeToString() + " " + caption + " " + lat_load + " "
+                            + " " + filename + " " + caption + " " + lat_load + " "
                             + long_load);
 
                     LatLng latLng = new LatLng(lat_load, long_load);
@@ -309,37 +325,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     Toast.makeText(HomeActivity.this,
                             "map Ready", Toast.LENGTH_SHORT).show();
 
-                    /*googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
-                        @Override
-                        public View getInfoWindow(Marker marker) {
-                            return null;
-                        }
 
-                        @Override
-                        public View getInfoContents(Marker marker) {
-                            View view = getLayoutInflater().inflate(R.layout.map_dialog, null);
-                            try {
-                                ImageView imageView = (ImageView) view.findViewById(R.id.imgPhotoMap);
-                                TextView textView = (TextView) view.findViewById(R.id.captionMap);
-
-                                URL url = new URL(resourceUrl);
-                                HttpURLConnection conn = (HttpURLConnection)
-                                        url.openConnection();
-                                conn.setDoInput(true);
-                                conn.connect();
-
-                                InputStream inputStream = conn.getInputStream();
-                                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-
-                                imageView.setImageDrawable(getDrawable(R.drawable.login_background));
-                                textView.append(" " + map.get("caption").toString());
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
-                            }
-
-                            return view;
-                        }
-                    });*/
                     googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
                         @Override
                         public View getInfoWindow(Marker marker) {
@@ -348,70 +334,89 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                         @Override
                         public View getInfoContents(Marker marker) {
-                            View view = getLayoutInflater() .inflate(
+                            showProgressDialog("Download", "Downloading Image..");
+                            final View view = getLayoutInflater().inflate(
                                     R.layout.map_dialog, null);
-                            ImageView imageView = (ImageView) view
-                                    .findViewById(R.id.imgPhotoMap);
-                            imageView.setImageDrawable(getDrawable(R.drawable
-                            .alert));
-                            TextView snippet;
-                            snippet = (TextView) view.findViewById
-                                    (R.id.titleMarker);
 
-                            snippet.setText(marker.getTitle());
+                            final ImageView imageView = (ImageView) view.findViewById(R.id.imgPhotoMap);
+                            final TextView title = (TextView) view.findViewById(R.id.titleMarker);
+
+                            try {
+                                title.setText(marker.getTitle());
+                                Glide.with(getApplicationContext())
+                                        //.load("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + map.get("Filename").toString() + "?alt=media&token=1")
+                                        .load(marker.getSnippet())
+                                        .into(imageView);
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                            hideProgressDialog();
 
                             return view;
                         }
                     });
-                    googleMap.addMarker(new MarkerOptions().position(latLng)
-                            .title(map.get("caption").toString()));
 
-                   /* googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                    marker = googleMap.addMarker(new MarkerOptions().position(latLng)
+                            .title(map.get("caption").toString())
+                            .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + map.get("Filename").toString() + "?alt=media&token=1"));
+
+                    googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                         @Override
-                        public boolean`mageDialogTitle);
-
-                            //final EditText caption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
-                            final ImageView photoImg = (ImageView) dialogView.findViewById(R.id.imgPhoto);
-
-                            //photoImg.setImageURI(bitmap);
-                            dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    strCaption = txtCaption.getText().toString();
-                                    Log.d(TAG, "caption: " + strCaption);
-
-                                    fileOperation = true;
-
-                                    Drive.DriveApi.newDriveContents(googleApiClient)
-                                            .setResultCallback(driveGalleryContentsCallback);
-
-                                    AlertDialog alert = dialogBuilder.create();
-                                    alert.cancel();
-
-                                }
-                            });
-
-                            dialogBuilder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    dialog.cancel();
-                                }
-                            });
-
-                            AlertDialog alertDialog = dialogBuilder.create();
-                            alertDialog.show();
+                        public void onMapClick(LatLng latLng) {
                             if (marker.isInfoWindowShown()) {
                                 marker.hideInfoWindow();
-                            } else if (!marker.isInfoWindowShown()) {
-                                marker.showInfoWindow();
                             }
-                            Log.d(TAG, "resource: " + resourceUrl);
-                            return true;
-                        }});*/
+                        }
+                    });
+                    googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                        @Override
+                        public boolean onMarkerClick(Marker marker) {
+                            marker.showInfoWindow();
 
-                    //marker.showInfoWindow();
+                            return true;
+                        }
+                    });
+
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLatLng));
                 }
+            }
+
+            public ProgressDialog mProgressDialog;
+
+            public void showProgressDialog(String title, String message) {
+                if (mProgressDialog == null) {
+                    mProgressDialog = new ProgressDialog(HomeActivity.this);
+                    mProgressDialog.setTitle(title);
+                    mProgressDialog.setMessage(message);
+                    mProgressDialog.setIndeterminate(true);
+                }
+
+                mProgressDialog.show();
+            }
+
+            public void hideProgressDialog() {
+                if (mProgressDialog != null && mProgressDialog.isShowing()) {
+                    mProgressDialog.dismiss();
+                }
+            }
+
+            private Drawable ImageOperations(Context context, String url, String saveFileName) {
+                try {
+                    InputStream is = (InputStream) this.fetch(url);
+                    Drawable d = Drawable.createFromStream(is, "src");
+                    return d;
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+
+                    return null;
+                }
+            }
+
+            public Object fetch(String addr) throws MalformedURLException, IOException {
+                URL url = new URL(addr);
+                Object content = url.getContent();
+
+                return content;
             }
 
             @Override
@@ -436,7 +441,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         });
     }
 
-    final private ResultCallback<DriveResource.MetadataResult> metaDataCallback =
+    /*final private ResultCallback<DriveResource.MetadataResult> metaDataCallback =
             new ResultCallback<DriveResource.MetadataResult>() {
                 @Override
                 public void onResult(@NonNull DriveResource.MetadataResult result) {
@@ -451,14 +456,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             + " id: " + metadata.getEmbedLink() + "\n"
                             + resourceUrl);
                 }
-            };
+            };*/
 
     @Override
     protected void onStart() {
         super.onStart();
 
         db = FirebaseDatabase.getInstance();
-        firebaseUser = mAuth.getCurrentUser();
+        //firebaseUser = mAuth.getCurrentUser();
     }
 
     public void openImageChooser() {
@@ -613,7 +618,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     }
                 }
                 break;
-            case REQUEST_CODE_OPENER:
+            /*case REQUEST_CODE_OPENER:
                 if (resultCode == RESULT_OK) {
                     driveId = data.getParcelableExtra(
                             OpenFileActivityBuilder.EXTRA_RESPONSE_DRIVE_ID);
@@ -622,7 +627,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                     Log.e("url", "url: http://drive.google.com/open?id=" + driveId.getResourceId());
                 }
-                break;
+                break;*/
             case SELECT_PICTURE:
                 if (data != null && resultCode == RESULT_OK) {
                     selectedImageUri = data.getData();
@@ -804,8 +809,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                             fileOperation = true;
 
-                            Drive.DriveApi.newDriveContents(googleApiClient)
-                                    .setResultCallback(driveVideoContentsCallback);
+                            /*Drive.DriveApi.newDriveContents(googleApiClient)
+                                    .setResultCallback(driveVideoContentsCallback);*/
+                            uploadVideoToFirebase(file, strCaption);
                         }
                     }
                 }
@@ -822,6 +828,37 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
+    }
+
+    public void uploadVideoToFirebase(File file, String caption) {
+        final String timestamp = new SimpleDateFormat("yyyyMMddHHmmss")
+                .format(new Date());
+        final double lat = latitude;
+        final double longi = longitude;
+        final String strCapt = caption;
+
+        Uri fileVideo = Uri.fromFile(file);
+        StorageReference videoRef = storageReference.child("IRecall")
+                .child(fileVideo.getLastPathSegment());
+        UploadTask videoUpload = videoRef.putFile(fileVideo);
+
+        videoUpload.addOnFailureListener(HomeActivity.this, new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.d(TAG, "Error while uploading the video from gallery");
+            }
+        }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                downloadGalleryImgUri = taskSnapshot.getDownloadUrl();
+                Log.d(TAG, "Video uploaded successfully");
+                addDbValues("VID_" + timestamp + ".mp4", strCapt,
+                        22.307159, 73.181219, "V");
+                Toast.makeText(HomeActivity.this,
+                        "Video uploaded successfully",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     public void showSelectedImageDialog(Uri bitmap) {
@@ -850,8 +887,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 fileOperation = true;
 
-                Drive.DriveApi.newDriveContents(googleApiClient)
-                        .setResultCallback(driveGalleryContentsCallback);
+                /*Drive.DriveApi.newDriveContents(googleApiClient)
+                        .setResultCallback(driveGalleryContentsCallback);*/
+                uploadGalleryImageToFirebase(pathImgGallery);
 
                 AlertDialog alert = dialogBuilder.create();
                 alert.cancel();
@@ -868,6 +906,29 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
+    }
+
+    public void uploadGalleryImageToFirebase(String galleryImage) {
+        Uri file = Uri.fromFile(new File(galleryImage));
+        StorageReference galleryRef = storageReference.child("IRecall")
+                .child(file.getLastPathSegment());
+        UploadTask galleryImgUpload = galleryRef.putFile(file);
+
+        galleryImgUpload.addOnFailureListener(HomeActivity.this, new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.d(TAG, "Error while uploading the image from gallery");
+            }
+        }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                downloadGalleryImgUri = taskSnapshot.getDownloadUrl();
+                Log.d(TAG, "Uploading image from gallery successful");
+                Toast.makeText(HomeActivity.this,
+                        "Gallery image successfully uploaded",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     public void showSelectedVideoDialog(Uri videoUri) {
@@ -898,8 +959,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 fileOperation = true;
 
-                Drive.DriveApi.newDriveContents(googleApiClient)
-                        .setResultCallback(driveVideoGalleryContentsCallback);
+                /*Drive.DriveApi.newDriveContents(googleApiClient)
+                        .setResultCallback(driveVideoGalleryContentsCallback);*/
+                uploadGalleryVideoToFirebase(pathVideoGallery);
 
                 AlertDialog alert = dialogBuilder.create();
                 alert.cancel();
@@ -916,6 +978,29 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
+    }
+
+    public void uploadGalleryVideoToFirebase(String galleryVideo) {
+        Uri file = Uri.fromFile(new File(galleryVideo));
+        StorageReference galleryRef = storageReference.child("IRecall")
+                .child(file.getLastPathSegment());
+        UploadTask galleryImgUpload = galleryRef.putFile(file);
+
+        galleryImgUpload.addOnFailureListener(HomeActivity.this, new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.d(TAG, "Error while uploading the video from gallery");
+            }
+        }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                downloadGalleryImgUri = taskSnapshot.getDownloadUrl();
+                Log.d(TAG, "Video from gallery uploaded successfully.");
+                Toast.makeText(HomeActivity.this,
+                        "Gallery video successfully uploaded",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private static File getOutputMediaFile(int type) {
@@ -948,6 +1033,32 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         return Uri.fromFile(getOutputMediaFile(type));
     }
 
+    private void addDbValues(String filename, String caption, double latitude, double longitude,
+                           String mediaIdentify) {
+        Random random = new Random();
+
+        Toast.makeText(this, "albumId123456: "+albumid, Toast.LENGTH_SHORT).show();
+        Log.i("Album123456 ", albumid);
+        Log.d(TAG, "lat " + latitude + " long: " + longitude);
+
+        Map<String, String> map = new HashMap<>();
+        //Toast.makeText(this, "albumId"+albumid, Toast.LENGTH_SHORT).show();
+
+        if (albumid.equalsIgnoreCase("")) {
+            map.put("AlbumId", Integer.toString(random.nextInt(1081) + 20));
+        } else {
+            map.put("AlbumId", albumid);
+        }
+
+        map.put("MediaId", mediaIdentify+"_"+Integer.toString(random.nextInt(1081) + 20));
+        map.put("Filename", filename);
+        map.put("caption", caption);
+        map.put("Latitude", Double.toString(latitude));
+        map.put("Longitude", Double.toString(longitude));
+
+        firebase.push().setValue(map);
+    }
+
     private Bitmap bmp1;
 
     public void showPhotoDialog(Bitmap bmp) {
@@ -975,8 +1086,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         strCaption = txtCaption.getText().toString();
                         Log.d(TAG, "caption: " + strCaption);
 
-                        Drive.DriveApi.newDriveContents(googleApiClient)
-                                .setResultCallback(driveContentsCallback);
+                        /*Drive.DriveApi.newDriveContents(googleApiClient)
+                                .setResultCallback(driveContentsCallback);*/
+                        //upload to firebase storage
+
+                        uploadImageToFirebase(photoImg, strCaption);
+
+                        //upload end
 
                         dialog.cancel();
                     }
@@ -993,7 +1109,53 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         alertDialog.show();
     }
 
-    final private ResultCallback<DriveApi.DriveContentsResult> driveContentsCallback = new
+    public void uploadImageToFirebase(ImageView photoImg, String caption) {
+        final String timestamp = new SimpleDateFormat("yyyyMMddHHmmss")
+                .format(new Date());
+        final String strCapt = caption;
+        final double lat = latitude;
+        final double longi = longitude;
+
+        imageStorage = storageReference.child("IRecall")
+                .child("IMG_" + timestamp + ".jpg");
+        imageFolderStorage = storageReference.child("IRecall/someFile.jpg");
+
+        imageStorage.getName().equals(imageFolderStorage.getName());
+        imageStorage.getPath().equals(imageFolderStorage.getPath());
+
+        photoImg.setDrawingCacheEnabled(true);
+        photoImg.buildDrawingCache();
+
+        Bitmap bitmap = photoImg.getDrawingCache();
+        ByteArrayOutputStream outputStream =
+                new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100,
+                outputStream);
+        byte[] data = outputStream.toByteArray();
+
+        UploadTask uploadTask = imageStorage.putBytes(data);
+        uploadTask.addOnFailureListener(HomeActivity.this, new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Toast.makeText(HomeActivity.this,
+                        "Upload was unsuccessful",
+                        Toast.LENGTH_SHORT).show();
+            }
+        }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                Toast.makeText(HomeActivity.this,
+                        "Upload was successful",
+                        Toast.LENGTH_SHORT).show();
+                addDbValues("IMG_" + timestamp + ".jpg", strCapt,
+                        22.307159, 73.181219, "I");
+                downloadUri = taskSnapshot.getDownloadUrl();
+                Log.d(TAG, "Uri: " + downloadUri);
+            }
+        });
+    }
+
+   /* final private ResultCallback<DriveApi.DriveContentsResult> driveContentsCallback = new
             ResultCallback<DriveApi.DriveContentsResult>(){
                 @Override
                 public void onResult(@NonNull DriveApi.DriveContentsResult result) {
@@ -1003,7 +1165,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         }
                     }
                 }
-            };
+            };*/
 
     final private ResultCallback<DriveApi.DriveContentsResult> driveGalleryContentsCallback = new
             ResultCallback<DriveApi.DriveContentsResult>(){
@@ -1011,7 +1173,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 public void onResult(@NonNull DriveApi.DriveContentsResult result) {
                     if (result.getStatus().isSuccess()) {
                         if (fileOperation) {
-                            createGalleryGoogleDrive(result);
+                            //createGalleryGoogleDrive(result);
                         } else {
                             openGalleryFromDrive();
                         }
@@ -1025,7 +1187,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 public void onResult(@NonNull DriveApi.DriveContentsResult result) {
                     if (result.getStatus().isSuccess()) {
                         if (fileOperation) {
-                            createVideoGalleryGoogleDrive(result);
+                            //createVideoGalleryGoogleDrive(result);
                         } else {
                             openGalleryFromDrive();
                         }
@@ -1038,7 +1200,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 @Override
                 public void onResult(@NonNull DriveApi.DriveContentsResult result) {
                     if (result.getStatus().isSuccess()) {
-                        createVideoGoogleDrive(result);
+                        //createVideoGoogleDrive(result);
                     } else {
                         openVideoFromDrive();
                     }
@@ -1054,7 +1216,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         try {
             startIntentSenderForResult(intentSender, REQUEST_CODE_OPENER, null, 0, 0, 0);
 
-            System.out.println("url:" + url);
+            //System.out.println("url:" + url);
         } catch (IntentSender.SendIntentException e) {
             Log.w("Drive Config", "Unable to send intent", e);
         }
@@ -1068,13 +1230,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         try {
             startIntentSenderForResult(intentSender, REQUEST_CODE_OPENER, null, 0, 0, 0);
 
-            System.out.println("url:" + url);
+            //System.out.println("url:" + url);
         } catch (IntentSender.SendIntentException e) {
             Log.w("Drive Config", "Unable to send intent", e);
         }
     }
 
-    public void createVideoGoogleDrive(DriveApi.DriveContentsResult result) {
+    /*public void createVideoGoogleDrive(DriveApi.DriveContentsResult result) {
         final DriveContents driveContents = result.getDriveContents();
 
         new Thread() {
@@ -1250,7 +1412,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
                     bmp1.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
 
-                    /*File videoFile = new File(img);
+                    File videoFile = new File(img);
                     String parent = videoFile.getParent();
                     File realPath = new File(parent);
 
@@ -1270,8 +1432,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         }
                     }
 
-                    byteStream.write(bytes);*/
-                    outputStream.write(byteStream.toByteArray());
+                    byteStream.write(bytes);
+                    //outputStream.write(//byteStream.toByteArray());
                 } catch (Exception ex) {
                     Log.e("Error in image upload", ex.getMessage());
                 }
@@ -1315,7 +1477,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             85.27587890625,
                             "I");
                 }
-            };
+            };*/
 
 
     private void addValues(String url, String caption, double latitude, double longitude,
@@ -1440,11 +1602,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
 
 
-            System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
+            /*System.out.println("File url: " + "http://drive.google.com/open?id=" + result.getDriveFile().getDriveId());
             Toast.makeText(HomeActivity.this, "file created with content: " + result.getDriveFile().getDriveId()
-                    , Toast.LENGTH_SHORT).show();
+                    , Toast.LENGTH_SHORT).show();*/
 
-            addValues(result.getDriveFile().getDriveId().toString(),
+            addValues("sdlkfjsdf",
                     strCaption,
                     2000.0,
                     160.45,
@@ -1478,7 +1640,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     public void onConnected(@Nullable Bundle bundle) {
         //check if folder exists
 
-        Query query = new Query.Builder()
+        /*Query query = new Query.Builder()
                 .addFilter(Filters.and(Filters.eq(SearchableField.TITLE, "IRecall"),
                         Filters.eq(SearchableField.TRASHED, false))).build();
         Drive.DriveApi.query(getGoogleApiClient(), query)
@@ -1527,12 +1689,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             }
                         }
                     }
-                });
+                });*/
 
         //folderExistsCheck ends.
     }
 
-    final private ResultCallback<DriveApi.DriveIdResult> idCallback = new
+  /* final private ResultCallback<DriveApi.DriveIdResult> idCallback = new
             ResultCallback<DriveApi.DriveIdResult>() {
                 @Override
                 public void onResult(@NonNull DriveApi.DriveIdResult result) {
@@ -1542,11 +1704,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                     folderDriveId = result.getDriveId();
                     Log.d(TAG, "Folder drive id: " + folderDriveId);
-                    /*
+
                     Drive.DriveApi.newDriveContents(getGoogleApiClient())
-                            .setResultCallback(driveContentsCallback1);*/
+                            .setResultCallback(driveContentsCallback1);
                 }
-            };
+            };*/
 
     @Override
     public void onBackPressed(){
