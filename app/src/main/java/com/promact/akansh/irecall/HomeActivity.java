@@ -85,9 +85,15 @@ import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 import java.io.ByteArrayOutputStream;
@@ -100,6 +106,8 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -135,6 +143,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private Firebase firebase;
     private LocationManager locationManager;
     private String albumid;
+    private String latitudeAlbum;
+    private String longitudeAlbum;
     private String strCaption;
     private String userId;
     private FirebaseAuth mAuth;
@@ -153,6 +163,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private StorageReference imageFolderStorage;
     private Uri downloadUri;
     private Uri downloadGalleryImgUri;
+    public String[] newStr = null;
+    public int k=0;
+    public int mapSize = 0;
+    public String mpLatLong = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -284,48 +298,296 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public void onMapReady(final GoogleMap googleMap) {
         final LayoutInflater layoutInflater = this.getLayoutInflater();
+
         loadData(googleMap, layoutInflater);
     }
+
+    public double[] lati = new double[10];
+    public double[] longit = new double[10];
+    public String[] capti = new String[10];
+    public int j=0;
+    public String cap = "";
+    public int trueCount = 0;
+    public int count = 0;
+    public String latOut = "";
+    public String longOut = "";
+    public String capt = "";
+    public String filename1 = "";
+    public String lat_forLoop = "";
+    public String long_forLoop = "";
+    public String latitudeFor = "";
+    public String longitudeFor = "";
+    public Date dt = null;
+    public static String abc = "";
+    public static String y="";
+    public AlbumDetails albumDetails;
+    public List<AlbumDetails> arrayList = new ArrayList<>();
+    public List<String> listArr = new ArrayList<>();
+    public List<String> listNum = new ArrayList<>();
+    public Map<String, String> mapDetails = new TreeMap<>();
 
     public GoogleApiClient getGoogleApiClient() {
         return googleApiClient;
     }
 
     private void loadData(final GoogleMap googleMap, final LayoutInflater layoutInflater) {
-
         firebase.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                final Map map = dataSnapshot.getValue(Map.class);
+                int l=0;
+                //final Map map = dataSnapshot.getValue(Map.class);
+                albumDetails = dataSnapshot.getValue(AlbumDetails.class);
+                arrayList.add(albumDetails);
+
+                mapDetails.put("AlbumId", arrayList.get(arrayList.size()-1).AlbumId);
+                mapDetails.put("Date", arrayList.get(arrayList.size()-1).Date);
+                mapDetails.put("Filename", arrayList.get(arrayList.size()-1).Filename);
+                mapDetails.put("Latitude", arrayList.get(arrayList.size()-1).Latitude);
+                mapDetails.put("Longitude", arrayList.get(arrayList.size()-1).Longitude);
+                mapDetails.put("MediaId", arrayList.get(arrayList.size()-1).MediaId);
+                mapDetails.put("caption", arrayList.get(arrayList.size()-1).caption);
+
+                Log.d(TAG, "Map:"+mapDetails.get("AlbumId"));
+                if (mapDetails.containsValue("AlbumId"))
+
+                if (!listNum.contains(arrayList.get(arrayList.size()-1).AlbumId)) {
+                    listNum.add(arrayList.get(arrayList.size() - 1).AlbumId);
+                } else if (listNum.size()==0) {
+                    listNum.add(arrayList.get(arrayList.size() - 1).AlbumId);
+                }
+
+                for (String str : listNum) {
+                    Log.d(TAG, "num Array: " + str + " size: " + listNum.size());
+                }
+
+                listArr.add(arrayList.get(arrayList.size()-1).caption);
+                listArr.add(arrayList.get(arrayList.size()-1).AlbumId);
+                listArr.add(arrayList.get(arrayList.size()-1).Date);
+                listArr.add(arrayList.get(arrayList.size()-1).Filename);
+                listArr.add(arrayList.get(arrayList.size()-1).Latitude);
+                listArr.add(arrayList.get(arrayList.size()-1).Longitude);
+                listArr.add(arrayList.get(arrayList.size()-1).MediaId);
+                for (int i=0; i<listArr.size(); i++) {
+                    if (i!=listArr.size()-1) {
+                        if (listArr.get(i)
+                                .contains(arrayList.get(arrayList.size()-1)
+                                        .Latitude) &&
+                            listArr.get(i)
+                                .contains(arrayList.get(arrayList.size()-1)
+                                        .Longitude)) {
+                            Log.d(TAG, "abcd: " + listArr.get(i));
+                        }
+                    }
+                }
+
+                for (int i=0; i<arrayList.size(); i++) {
+                    if (i==(arrayList.size()-1)) {
+                        /*Log.d(TAG, "abcd: " + i + " " + arrayList.get(i).caption);*/
+                        //listArr.add(arrayList.get(i).caption);
+                    }
+/*
+                    listArr.add(abcd);
+                    Log.d(TAG, "abc: " + i + " " + .get(i).caption);*/
+                }
+                for (String str : listArr) {
+                    Log.d(TAG, "abc: " + str);
+                }
+
                 final double lat1 = latitude;
                 final double long1 = longitude;
                 LatLng currLatLng = new LatLng(lat1, long1);
-                final StorageReference storeRef = storageReference;
-                FirebaseStorage storage = FirebaseStorage.getInstance();
-                final StorageReference storageRef = storage.getReferenceFromUrl("gs://irecall-4dcd0.appspot.com").child("IRecall/" + map.get("Filename").toString());
-                Log.d(TAG, "filename: " + map.get("Filename").toString());
+                Log.d(TAG, "filename: " + albumDetails.Filename);
                 final Marker marker;
+                trueCount=0;
+                count=0;
 
-                if (map.size()>0) {
-                    String albumId = map.get("AlbumId").toString();
-                    String MediaId = map.get("MediaId").toString();
-                    final String filename = map.get("Filename").toString();
-                    final String caption = map.get("caption").toString();
-                    final double lat_load = Double.parseDouble(map.get("Latitude")
-                            .toString());
-                    final double long_load = Double.parseDouble(map.get("Longitude")
-                            .toString());
+                if (!(albumDetails.equals(null) || albumDetails.equals(""))) {
+                    String albumId = albumDetails.AlbumId;
+                    String MediaId = albumDetails.MediaId;
+                    final String filename = albumDetails.Filename;
+                    final String caption = albumDetails.caption;
+                    final double lat_load = Double
+                            .parseDouble(albumDetails.Latitude);
+                    final double long_load = Double
+                            .parseDouble(albumDetails.Longitude);
 
-                    Log.i("values fetched ", albumId + " " + MediaId
-                            + " " + filename + " " + caption + " " + lat_load + " "
-                            + long_load);
+                    /*albumDetails.setAlbumId(map.get("AlbumId").toString());
+                    albumDetails.setDate(map.get("Date").toString());
+                    albumDetails.setFilename(map.get("Filename").toString());
+                    albumDetails.setLatitude(map.get("Latitude").toString());
+                    albumDetails.setLongitude(map.get("Longitude").toString());
+                    albumDetails.setMediaId(map.get("MediaId").toString());
+                    albumDetails.setCaption(map.get("caption").toString());
 
+                    Collection<Map.Entry> mapEntry = map.entrySet();
+                    for (Map.Entry entry : mapEntry) {
+                        if (!entry.getValue().equals(y) && entry.getKey().equals("Latitude")) {
+                            Log.d(TAG, "y value: " + y + "\n");
+                        }
+
+                        y = y + entry.getValue();
+                    }*/
+
+                    lati[j] = Double.parseDouble(albumDetails.Latitude);
+                    longit[j] = Double.parseDouble(albumDetails.Longitude);
+                    capti[j] = albumDetails.caption;
+
+                    //dt = java.sql.Date.valueOf(map.get("Date").toString());
+                    DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+                    Date dat = new Date();
+                    try {
+                        dt = df.parse(albumDetails.Date);
+                        int largestNumb = Collections
+                                .min(Arrays.asList(
+                                        Integer.parseInt
+                                                (Long.toString(dat.getTime()
+                                                        - dt.getTime()))));
+                        Log.d(TAG, "The time difference is: "
+                                + (dat.getTime() - dt.getTime())
+                                + " largest time difference: " + largestNumb
+                                + " and name is: " + albumDetails.Filename);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+
+                    Log.d(TAG, "value of lati [" + j + "]: " + lati[j]);
+                    Log.d(TAG, "value of longit[" + j + "]: " + lati[j]);
+
+                    for (int i=0; i<arrayList.size(); i++) {
+                        Log.d(TAG, "value of lati [" + i + "]: " + lati[i] + ";"
+                        + " value of lat_load: " + lat_load);
+                        Log.d(TAG, "value of longit[" + i + "]: " + longit[i] + ";"
+                        + " value of long_load: " + long_load
+                        + " value of caption: " + capti[i]);
+
+
+                        if (lat_load != lati[i] && long_load != longit[i]) {
+                            cap = albumDetails.caption;
+                        } else {
+                            //if (i<(arrayList.size()-2) && (lati[i+1]==lati[i] && longit[i+1]==longit[i])) {
+                                //cap = map.get("caption").toString();
+                                capt = albumDetails.caption;
+                                filename1 = albumDetails.Filename;
+                                lat_forLoop = albumDetails.Latitude;
+                                long_forLoop = albumDetails.Longitude;
+
+                                trueCount++;
+                            //}
+                        }
+                    }/*
+                    if (arrayList.get(arrayList.size()-1).Latitude.contains("" + lati[i])) {
+                        Log.d(TAG, "option: yes " + i);
+                    } else {
+                        Log.d(TAG, "option: no "+i);
+                    }*/
+
+                    /*Log.d(TAG, "caption for loop: " + capt);
+                    Log.d(TAG, "filename for loop: " + filename1);
+                    Log.d(TAG, "caption for loop: " + lat_forLoop);
+                    Log.d(TAG, "filename for loop: " + long_forLoop);
+
+                    Log.d(TAG, "value of true count: " + trueCount);
+                    count = trueCount;
+                    if (trueCount == 1) {
+                        latOut = latitudeFor;
+                        longOut = longitudeFor;
+                        Log.d(TAG, "caption for loop: " + capt);
+                        Log.d(TAG, "filename for loop: " + filename1);
+                        Log.d(TAG, "latitude for loop: " + lat_forLoop);
+                        Log.d(TAG, "longitude for loop: " + long_forLoop);
+                    }*/
+                    LinkedList<AlbumDetails> arrayList = new LinkedList<AlbumDetails>();
+                    arrayList.add(albumDetails);
+                    Collections.reverse(arrayList);
+
+                    Iterator<AlbumDetails> iterator = arrayList.iterator();
+                    while (iterator.hasNext()) {
+                        Log.d(TAG, "Iterator: " + l + ": " + iterator.next().caption);
+                    }
+
+                    Log.d(TAG, "tags: "+arrayList.get(arrayList.size()-1).caption);
+                    if (trueCount == 1) {
+                        Log.d(TAG, "abcde");
+
+                        Log.i("values fetched ", albumId + " " + MediaId
+                                + " " + filename + " " + cap + " " + lat_load + " "
+                                + long_load + "Date: " + dt);
+
+                        LatLng latLng = new LatLng(lat_load, long_load);
+                        Log.d(TAG, "LatLng" + latLng);
+
+                        Toast.makeText(HomeActivity.this,
+                                "map Ready", Toast.LENGTH_SHORT).show();
+
+
+                        googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
+                            @Override
+                            public View getInfoWindow(Marker marker) {
+                                return null;
+                            }
+
+                            @Override
+                            public View getInfoContents(Marker marker) {
+                                //showProgressDialog("Download", "Downloading Image..");
+                                final View view = getLayoutInflater().inflate(
+                                        R.layout.map_dialog, null);
+
+                                final ImageView imageView = (ImageView) view.findViewById(R.id.imgPhotoMap);
+                                final TextView title = (TextView) view.findViewById(R.id.titleMarker);
+
+                                try {
+                                    title.setText(marker.getTitle());
+                                    Glide.with(getApplicationContext())
+                                            //.load("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + map.get("Filename").toString() + "?alt=media&token=1")
+                                            .load(marker.getSnippet())
+                                            .into(imageView);
+                                } catch (Exception ex) {
+                                    ex.printStackTrace();
+                                }
+                                //hideProgressDialog();
+
+                                return view;
+                            }
+                        });
+                        Log.d(TAG, "tag1: "+arrayList.get(arrayList.size()-1).caption);
+                        marker = googleMap.addMarker(new MarkerOptions().position(latLng)
+                                //.title(albumDetails.caption)
+                                .title(arrayList.get(arrayList.size()-1).caption)
+                                .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + albumDetails.Filename + "?alt=media&token=1"));
+
+                        googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+                            @Override
+                            public void onMapClick(LatLng latLng) {
+                                if (marker.isInfoWindowShown()) {
+                                    marker.hideInfoWindow();
+                                }
+                            }
+                        });
+                        googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                            @Override
+                            public boolean onMarkerClick(Marker marker) {
+                                //marker.showInfoWindow();
+
+                                return false;
+                            }
+                        });
+
+                        googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                    } else {
+                        Log.d(TAG, "same lati/longit");
+                    }
+/*
+                    lati[j] = Double.parseDouble(map.get("Latitude").toString());
+                    longit[j] = Double.parseDouble(map.get("Longitude").toString());*/
+
+                    j++;
+/*
                     LatLng latLng = new LatLng(lat_load, long_load);
-                    Log.d(TAG, "LatLng" + latLng);
-                    Toast.makeText(HomeActivity.this,
-                            "map Ready", Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "LatLng" + latLng);*/
+                    /*Toast.makeText(HomeActivity.this,
+                            "map Ready", Toast.LENGTH_SHORT).show();*/
 
-
+/*
                     googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
                         @Override
                         public View getInfoWindow(Marker marker) {
@@ -378,7 +640,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     });
 
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                    */
+                    Log.d(TAG, "abcHead: " + trueCount);
                 }
+                l++;
             }
 
             public ProgressDialog mProgressDialog;
@@ -851,9 +1116,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                 downloadGalleryImgUri = taskSnapshot.getDownloadUrl();
+                String date = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
+                        .format(new Date());
                 Log.d(TAG, "Video uploaded successfully");
                 addDbValues("VID_" + timestamp + ".mp4", strCapt,
-                        22.307159, 73.181219, "V");
+                        Double.parseDouble(latitudeAlbum),
+                        Double.parseDouble(longitudeAlbum), "V", date);
                 Toast.makeText(HomeActivity.this,
                         "Video uploaded successfully",
                         Toast.LENGTH_SHORT).show();
@@ -1034,7 +1302,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void addDbValues(String filename, String caption, double latitude, double longitude,
-                           String mediaIdentify) {
+                           String mediaIdentify, String date) {
         Random random = new Random();
 
         Toast.makeText(this, "albumId123456: "+albumid, Toast.LENGTH_SHORT).show();
@@ -1055,6 +1323,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         map.put("caption", caption);
         map.put("Latitude", Double.toString(latitude));
         map.put("Longitude", Double.toString(longitude));
+        map.put("Date", date.toString());
 
         firebase.push().setValue(map);
     }
@@ -1147,8 +1416,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 Toast.makeText(HomeActivity.this,
                         "Upload was successful",
                         Toast.LENGTH_SHORT).show();
+                String date = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
+                        .format(new Date());
                 addDbValues("IMG_" + timestamp + ".jpg", strCapt,
-                        22.307159, 73.181219, "I");
+                        22.307159, 73.181219, "I", date);
                 downloadUri = taskSnapshot.getDownloadUrl();
                 Log.d(TAG, "Uri: " + downloadUri);
             }
@@ -1506,21 +1777,25 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         firebase.push().setValue(map);
     }
 
+
     private void loadLatLong() {
         albumid = "";
-        firebase.addChildEventListener(new ChildEventListener() {
+        firebase.startAt().addChildEventListener(new ChildEventListener() {
 
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 Map map = dataSnapshot.getValue(Map.class);
+                newStr = new String[map.size()];
+                mapSize = map.size();
 
                 double lat = Double.parseDouble(map.get("Latitude").toString());
                 double longi = Double.parseDouble(map.get("Longitude").toString());
 
                 Toast.makeText(HomeActivity.this, "lat: " + lat + "long: " + longi, Toast.LENGTH_SHORT).show();
                 Log.i("values ", "lat: " + lat + "long: " + longi);
-                String album = calcDistance(2000.0, 160.45, lat, longi);
+                String album = calcDistance(22.640452, 72.201820, lat, longi);
                 Random random = new Random();
+                newStr[j] = "lat: "+lat+" long: "+longi;
 
                 if (map.size() > 0) {
                     if (album.equalsIgnoreCase("same")) {
@@ -1528,10 +1803,48 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         Toast.makeText(HomeActivity.this,
                                 "album id: " + albumid, Toast.LENGTH_SHORT).show();
                         Log.d(TAG,"album id:: "+ albumid);
-
+                        longitudeAlbum = map.get("Longitude").toString();
+                        latitudeAlbum = map.get("Latitude").toString();
+                    } else {
+                        albumid = Integer.toString(random.nextInt(1081) + 20);
+                        longitudeAlbum = Double.toString(longitude);
+                        latitudeAlbum = Double.toString(latitude);
                     }
                 } else {
                     albumid = Integer.toString(random.nextInt(1081) + 20);
+                    longitudeAlbum = Double.toString(longitude);
+                    latitudeAlbum = Double.toString(latitude);
+                }
+
+                k++;
+                mpLatLong = "";
+
+                if (!mpLatLong.contains(newStr[5])) {
+                    mpLatLong = mpLatLong + newStr[5];
+                }
+                Log.d(TAG, "mpLatLong: " + mpLatLong);
+                /*mpLatLong = mpLatLong + " abc " + newStr[5];*/
+                Log.d(TAG, "lat/long: " + newStr[5] + "ap:" + mpLatLong);
+                String[] anc = mpLatLong.split("abc");
+                /*for (int p=0; p<anc.length; p++) {
+                    if (!anc[p].equals("")) {
+                        Log.d(TAG, "sampleTesting: " + anc[p]);
+                    }
+                }*/
+                for (String a : anc) {
+                    /*if (mpLatLong.contains(a)) {
+                        countInt++;
+                    }/*
+                    if (countInt == 1) {
+                        Log.d(TAG, "sampleTesting: " + a);
+                    }*/
+                    //int countInt = 0;
+                    Log.d(TAG, "latLong123: " + a);
+                    //if (!a.equals("")) {
+                       // countInt++;
+                       // Log.d(TAG, "Count abc: " + countInt);
+                       // Log.d(TAG, "existsOrNot" + mpLatLong.contains(a));
+                    //}
                 }
             }
 
