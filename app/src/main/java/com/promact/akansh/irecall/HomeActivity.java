@@ -207,6 +207,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     public Map<String, String> revMap = new TreeMap<>(Collections.<String>reverseOrder());
     public static int z=1;
     public Marker marker;
+    public int countMarker=0;
+    public String markerPos="";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -393,33 +395,21 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 albumDetails = dataSnapshot.getValue(AlbumDetails.class);
                 albumDetails3 = dataSnapshot.getValue(AlbumDetails.class);
 
-                for (int i=arrayList.size()-1;i>=0; i--) {
-
-                    //strBuild.append(str5[i] + "~");
-                }
-
 
                 arrayList.add(albumDetails);
-                revList.add(albumDetails3);
+               // revList.add(albumDetails3);
                 //if (revList.size())
-                if (arrayList.size()==5) {
-                    /*Log.d("revList123", "revList size: " + arrayList.size() + " values: " + arrayList.get(revList.size() - 1).caption);*/
+                if (arrayList.size()==8) {
+                    for (int i=arrayList.size()-1;i>=0; i--) {
+                        revList.add(arrayList.get(i));
+                        //strBuild.append(str5[i] + "~");
+                    }
+                    Log.d("revList123", "revList size: " + revList.size() + " values: " + revList.get(0).caption);
                     array[m] = arrayList.get(arrayList.size()-1).AlbumId;
                     Log.d(TAG, "Array element [" + m + "]: " + array[m]);
                     for (int i=0; i<arrayList.size(); i++) {
                         Log.d(TAG, "Strings["+i+"]: " + arrayList.get(i).caption);
                     }
-                    mapDetails.put("AlbumId", arrayList.get(arrayList.size()-1).AlbumId);
-                    mapDetails.put("Date", arrayList.get(arrayList.size()-1).Date);
-                    mapDetails.put("Filename", arrayList.get(arrayList.size()-1).Filename);
-                    mapDetails.put("Latitude", arrayList.get(arrayList.size()-1).Latitude);
-                    mapDetails.put("Longitude", arrayList.get(arrayList.size()-1).Longitude);
-                    mapDetails.put("MediaId", arrayList.get(arrayList.size()-1).MediaId);
-                    mapDetails.put("caption", arrayList.get(arrayList.size()-1).caption);
-
-                    revMap.putAll(mapDetails);
-                    Log.d(TAG, "Map reverse: " + revMap.get("AlbumId"));
-                    Log.d(TAG, "Map:"+mapDetails.get("AlbumId"));
 
                     if (!listNum.contains(arrayList.get(arrayList.size()-1).AlbumId)) {
                         listNum.add(arrayList.get(arrayList.size() - 1).AlbumId);
@@ -451,15 +441,37 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         }
                     }
 
-                    for (int i=0; i<arrayList.size(); i++) {
-                        if (i==(arrayList.size()-1)) {
-                        /*Log.d(TAG, "abcd: " + i + " " + arrayList.get(i).caption);*/
-                            //listArr.add(arrayList.get(i).caption);
-                        }
-/*
-                    listArr.add(abcd);
-                    Log.d(TAG, "abc: " + i + " " + .get(i).caption);*/
+                    for (int i=0; i<revList.size(); i++) {
+                        //if (revMap.size()>0 && !revMap.containsKey(revList.get(i).Latitude+revList.get(i).Longitude)) {
+                        if (revMap.size()>0 && !revMap.containsKey(revList.get(i).Latitude+revList.get(i).Longitude)) {
+                            revMap.put(revList.get(i).Latitude+revList.get(i).Longitude, revList.get(i).caption+"~"+revList.get(i).Latitude+"~"+revList.get(i).Longitude);
+                            //arrList.add(i, revList.get(i).caption+"~"+revList.get(i).Latitude+"~"+revList.get(i).Longitude);
+                            //revMap.put(revList.get(i).Latitude+revList.get(i).Longitude, albumDetails);
+                        } else if (revMap.size()==0) {
+                            revMap.put(revList.get(i).Latitude+revList.get(i).Longitude, revList.get(i).caption+"~"+revList.get(i).Latitude+"~"+revList.get(i).Longitude);
+                            //arrList.add(i, revList.get(i).caption+"~"+revList.get(i).Latitude+"~"+revList.get(i).Longitude);
+                            //revMap.put(revList.get(i).Latitude+revList.get(i).Longitude, albumDetails);
+                        }/* else if (revMap.containsKey(revList.get(i).Latitude+revList.get(i).Longitude)) {
+                            continue;
+                        }*/
+                        Log.d(TAG, "revMap size: "+revMap.size()+" items: "
+                        + revList.get(i).AlbumId);
                     }
+
+                    for (int i=0; i<revMap.size(); i++) {
+                        arrList.add(revMap.get(revList.get(i).Latitude+revList.get(i).Longitude));
+                        Log.d(TAG, "revMap12: "+arrList.get(i));
+                    }
+                    /*Log.d(TAG, "revMap12: "+revMap.get(revList.get(1).Latitude+revList.get(1).Longitude));
+                    Log.d(TAG, "revMap12: "+revMap.get(revList.get(2).Latitude+revList.get(2).Longitude));
+                    Log.d(TAG, "revMap12: "+revMap.get(revList.get(3).Latitude+revList.get(3).Longitude));*/
+
+                    for (int i=0; i<arrList.size(); i++) {
+                        //Log.d(TAG, "revListNew: " + revMap.get(revList.get(i).Latitude+revList.get(i).Longitude)
+                        //+ " Key: "+revMap.keySet().iterator().next());
+                        Log.d(TAG, "revListNew: " + arrList.get(i));
+                    }
+
                     for (String str : listArr) {
                         Log.d(TAG, "abc: " + str);
                     }
@@ -604,10 +616,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             Log.d(TAG, "Marker: " + arrayList.get(2).caption);
                             Log.d(TAG, "Marker: " + arrayList.get(3).caption);*/
                            // Log.d(TAG, "MarkerOk: " + arrayList.get(4).caption);
-
-                            for (int d=0; d<arrayList.size(); d++) {
-                                LatLng latLng = new LatLng(Double.parseDouble(arrayList.get(d).Latitude)
-                                        , Double.parseDouble(arrayList.get(d).Longitude));
+                            String strAbc;
+                            for (int d=1; d<revMap.size(); d++) {
+                            //for (int d=0; d<revList.size(); d++) {
+                                LatLng latLng = new LatLng(Double.parseDouble(arrList.get(d).split("~")[1])
+                                        , Double.parseDouble(arrList.get(d).split("~")[2]));
                                 Log.d(TAG, "LatLng" + latLng);
 
                                 googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
@@ -624,11 +637,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                                         final ImageView imageView = (ImageView) view.findViewById(R.id.imgPhotoMap);
                                         final TextView title = (TextView) view.findViewById(R.id.titleMarker);
-
-                                        String lat_abc = marker.getTitle().split("~")[1]
-                                                .split(", ")[0];
-                                        String long_abc = marker.getTitle().split("~")[1]
-                                                .split(", ")[1];
 
                                         try {
                                             title.setText(marker.getTitle().split("~")[0]);
@@ -649,12 +657,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 Log.d(TAG, "Children count: " + dataSnapshot.getChildrenCount());
                                 w++;
 
-                                marker = googleMap.addMarker(new MarkerOptions().position(latLng)
-                                        //.title(albumDetails.caption)
-                                        // .title(arrayList.get(arrayList.size()-1).caption)
-                                        .title(arrayList.get(d).caption
-                                                + "~loc: "+arrayList.get(d).Latitude
-                                                + ", long: "+arrayList.get(d).Longitude)
+                                marker = googleMap.addMarker(new MarkerOptions()
+                                        .position(latLng).title(arrList.get(d)
+                                            + "~"+arrList.get(d).split("~")[1]
+                                            + "~"+arrList.get(d).split("~")[2])
                                         .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + /*albumDetails.Filename*/arrayList.get(arrayList.size()-1).Filename + "?alt=media&token=1"));
                                // Log.d(TAG, "Marker: " + marker.getTitle());
                                // Log.d(TAG, "Marker: " + arrayList.get(d).caption);
@@ -668,11 +674,44 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                         }*/
                                     }
                                 });
+                                googleMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+                                    @Override
+                                    public void onInfoWindowClick(Marker marker) {
+                                        /*Toast.makeText(HomeActivity.this,
+                                                arrList.size(),
+                                                Toast.LENGTH_SHORT).show();*/
+                                        for (int i=0; i<revList.size(); i++) {
+                                            if (revList.get(i).Latitude
+                                                    .equals(marker.getTitle()
+                                                    .split("~")[1])) {
+                                                Log.d(TAG, "matched: "
+                                                + revList.get(i).caption);
+                                            }
+                                        }
+                                        /*Log.d(TAG, "info Window-Click: "
+                                                + revList.size());*/
+                                    }
+                                });
                                 googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
                                     @Override
                                     public boolean onMarkerClick(Marker marker) {
+                                        /*Log.d(TAG, "marker position: "
+                                                + markerPos + " marker? "
+                                                + marker.getPosition().equals(markerPos)
+                                                + "abc".equals("abc"));
                                         //marker.showInfoWindow();
-                                        //Log.d(TAG, "Marker: " + marker.getTitle());
+                                        if (!marker.getPosition().equals(markerPos)) {
+                                            countMarker=0;
+                                        } else if (marker.getPosition().equals(markerPos)) {
+                                            countMarker++;
+                                        }
+
+                                        markerPos = marker.getPosition().toString();
+
+                                        Log.d(TAG, "count marker clicks: " + countMarker
+                                        + " position: " + marker.getPosition().toString()
+                                        + " marker position: " + markerPos);
+                                        Toast.makeText(HomeActivity.this, "count marker clicks: " + countMarker, Toast.LENGTH_SHORT).show();*/
                                         return false;
                                     }
                                 });
@@ -1534,7 +1573,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 String date = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
                         .format(new Date());
                 addDbValues("IMG_" + timestamp + ".jpg", strCapt,
-                        22.307159, 73.181219, "I", date);
+                        22.640452,72.20182, "I", date);
                 downloadUri = taskSnapshot.getDownloadUrl();
                 Log.d(TAG, "Uri: " + downloadUri);
             }
