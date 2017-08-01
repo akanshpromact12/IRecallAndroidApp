@@ -1,50 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical" android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingTop="20px">
+    <RelativeLayout android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
     <ImageView
         android:layout_width="204dp"
         android:layout_height="92dp"
         android:id="@+id/imgPhoto"
         android:layout_gravity="center"
-        android:layout_marginTop="38dp"
+        android:layout_marginTop="10dp"
         android:foregroundGravity="left"
         android:layout_marginLeft="20dp"
-        android:layout_below="@+id/txtTitle"
         android:layout_centerHorizontal="true" />
+        <!--android:layout_below="@+id/txtTitle"-->
 
     <EditText
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:inputType="textMultiLine"
-        android:layout_marginTop="28dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="50px"
+        android:layout_marginRight="50px"
         android:id="@+id/txtBoxCaption"
         android:hint="Enter a caption"
-        android:layout_below="@+id/imgPhoto"
-        android:layout_alignEnd="@+id/txtTitle"
-        android:layout_alignStart="@+id/txtTitle" />
+        android:layout_below="@+id/imgPhoto"/>
+        <!--android:layout_alignStart="@+id/txtTitle"-->
 
-    <TextView
+    <!--<TextView
         android:id="@+id/txtTitle"
         android:gravity="left"
         android:text="@string/imageDialogTitle"
         android:textSize="24sp"
-        android:layout_marginTop="36dp"
+        android:layout_marginTop="34dp"
         android:paddingRight="90dp"
         android:textColor="@android:color/black"
         android:layout_height="wrap_content"
         android:layout_width="280dp"
         android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true" />
-
-    <!--<Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/btnUpload"
-        android:layout_marginTop="50dp"
-        android:layout_marginBottom="100dp"
-        android:layout_below="@+id/txtBoxCaption"
-        android:text="Upload Media" />-->
-
-</RelativeLayout>
+        android:layout_centerHorizontal="true" />-->
+    </RelativeLayout>
+</ScrollView>
