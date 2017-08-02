@@ -41,6 +41,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.drawable.GlideDrawable;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
@@ -336,19 +339,39 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             }
 
                             @Override
-                            public View getInfoContents(Marker marker) {
-                                final ViewGroup viewGroup = new RelativeLayout(HomeActivity.this);
+                            public View getInfoContents(final Marker marker) {
+                                //final ViewGroup viewGroup = new RelativeLayout(HomeActivity.this);
                                 final View view = getLayoutInflater().inflate(
-                                        R.layout.map_dialog, viewGroup, false);
+                                        R.layout.map_dialog, null);
 
                                 final ImageView imageView = (ImageView) view.findViewById(R.id.imgPhotoMap);
                                 final TextView title = (TextView) view.findViewById(R.id.titleMarker);
+                                String isImageLoaded = marker.getId();
+                                Toast.makeText(HomeActivity.this,
+                                        "marker id: " + isImageLoaded, Toast.LENGTH_SHORT).show();
 
                                 try {
                                     title.setText(marker.getTitle());
                                     Glide.with(getApplicationContext())
                                             //.load("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + map.get("Filename").toString() + "?alt=media&token=1")
                                             .load(marker.getSnippet())
+                                            .listener(new RequestListener<String, GlideDrawable>() {
+                                                @Override
+                                                public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                                                    e.printStackTrace();
+
+                                                    return false;
+                                                }
+
+                                                @Override
+                                                public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                                                    if (!isFromMemoryCache) {
+                                                        marker.showInfoWindow();
+                                                    }
+
+                                                    return false;
+                                                }
+                                            })
                                             .into(imageView);
                                 } catch (Exception ex) {
                                     ex.printStackTrace();
@@ -365,13 +388,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         googleMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
                             @Override
                             public void onInfoWindowClick(Marker marker) {
-                                for (int i=0; i<revList.size(); i++) {
+                                /*for (int i=0; i<revList.size(); i++) {
                                     if (revList.get(i).Latitude
                                             .equals(marker.getTitle())) {
                                         Log.d(TAG, "matched: "
                                                 + revList.get(i).caption);
                                     }
-                                }
+                                }*/
+                                //Log.d(TAG, "windowClick: " + str.get(0).caption);
                             }
                         });
                     }
