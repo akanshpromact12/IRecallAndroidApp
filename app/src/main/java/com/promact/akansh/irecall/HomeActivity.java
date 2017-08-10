@@ -1,5 +1,6 @@
 package com.promact.akansh.irecall;
 
+import android.app.ProgressDialog;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -7,9 +8,13 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Build;
@@ -73,6 +78,9 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -92,9 +100,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     static final int REQUEST_IMAGE_CAPTURE = 1;
     static final int REQUEST_VIDEO_CAPTURE = 2;
     private String name;
+    String email;
+    String photoUri;
     double latitude;
     double longitude;
     private static String fileName;
+    private static String thumbnailName;
     private static final int REQUEST_CODE_RESOLUTION = 1;
     private static final int SELECT_PICTURE = 100;
     private static final int SELECT_VIDEO = 500;
@@ -116,6 +127,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     private Uri downloadUri;
     public String[] newStr = null;
     public int mapSize = 0;
+    public ProgressDialog mProgressDialog;
 
     public double[] lati = new double[10];
     public double[] longit = new double[10];
@@ -160,16 +172,15 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         strCaption = "";
         try{
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+            if (locationManager.getAllProviders().contains(LocationManager.GPS_PROVIDER)){
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+            }
+
         } catch (SecurityException e){
             Log.e("Location: ", e.getMessage());
-
-
         }
 
         String userId;
-        String email;
-        String photoUri;
 
         if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
             Intent intent = getIntent();
@@ -182,11 +193,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             email = SaveSharedPref.getEmail(getApplicationContext());
             photoUri = SaveSharedPref.getPhotoUri(getApplicationContext());
             userId = SaveSharedPref.getUserId(getApplicationContext());
-
-            //Toast.makeText(this, "logged in as: " + email, Toast.LENGTH_SHORT).show();
         }
 
-        //Toast.makeText(this, "userid: " + userId, Toast.LENGTH_SHORT).show();
         Log.d(TAG, "userid: " + userId);
         Firebase.setAndroidContext(getApplicationContext());
         firebase = new Firebase("https://irecall-4dcd0.firebaseio.com/" + userId);
@@ -198,7 +206,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         NavigationView nav = (NavigationView) findViewById(R.id.nav_view);
         nav.setItemIconTintList(null);
         View newView = nav.getHeaderView(0); //Gets the header view from the header page, where all the widgets are kept.
-        View viewSnackbar = findViewById(android.R.id.content);
 
         TextView txtUname = (TextView) newView.findViewById(R.id.usernm);
         TextView txtEmail = (TextView) newView.findViewById(R.id.emailNav);
@@ -233,7 +240,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             }
         });
 
-        Snackbar.make(viewSnackbar, "Welcome " + name, Snackbar.LENGTH_LONG).show();
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -253,17 +259,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         });
 
         nav.setNavigationItemSelectedListener(this);
-        /*if (googleApiClient == null) {
-            googleApiClient = new GoogleApiClient.Builder(this)
-                    .addApi(Drive.API)
-                    .addScope(Drive.SCOPE_FILE)
-                    .addScope(Drive.SCOPE_APPFOLDER)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .build();
-        }
-
-        googleApiClient.connect();*/
     }
 
     @Override
@@ -273,10 +268,36 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onMapReady(final GoogleMap googleMap) {
+        checkFolderExists();
         loadData(googleMap);
     }
 
+    public void checkFolderExists() {
+        File folder = new File(Environment.getExternalStoragePublicDirectory
+                (Environment.DIRECTORY_PICTURES) + File.separator
+                + "/IRecall_Images");
+        boolean success = true;
+        if (!folder.exists()) {
+            success = folder.mkdir();
+        }
+
+        if (success) {
+            Log.d(TAG, "Folder Property: Folder created successfully");
+        } else {
+            Log.d(TAG, "Folder Property: Folder creation unsuccessful/file exists");
+        }
+    }
+
     private void loadData(final GoogleMap googleMap) {
+        googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                if (floatingActionMenu.isOpened()) {
+                    floatingActionMenu.close(true);
+                }
+            }
+        });
+
         firebase.orderByChild("Date").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
@@ -340,21 +361,29 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                             @Override
                             public View getInfoContents(final Marker marker) {
-                                //final ViewGroup viewGroup = new RelativeLayout(HomeActivity.this);
                                 final View view = getLayoutInflater().inflate(
                                         R.layout.map_dialog, null);
 
                                 final ImageView imageView = (ImageView) view.findViewById(R.id.imgPhotoMap);
+                                final ImageView play = (ImageView) view.findViewById(R.id.playHomeAct);
                                 final TextView title = (TextView) view.findViewById(R.id.titleMarker);
                                 String isImageLoaded = marker.getId();
-                                Toast.makeText(HomeActivity.this,
-                                        "marker id: " + isImageLoaded, Toast.LENGTH_SHORT).show();
+
+                                if (marker.getTitle().split("~")[2].contains("I_")) {
+                                    play.setVisibility(View.GONE);
+                                } else {
+                                    play.setVisibility(View.VISIBLE);
+                                    play.bringToFront();
+                                }
 
                                 try {
-                                    title.setText(marker.getTitle());
+                                    title.setText(marker.getTitle().split("~")[0]);
+                                    Log.d(TAG, "outside if/else");
+                                    showProgressDialog("Loading Media", "Please Wait");
+
+                                    Log.d(TAG, "Resource: "+marker.getSnippet().split("~")[0]);
                                     Glide.with(getApplicationContext())
-                                            //.load("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + map.get("Filename").toString() + "?alt=media&token=1")
-                                            .load(marker.getSnippet())
+                                            .load(marker.getSnippet().split("~")[0])
                                             .listener(new RequestListener<String, GlideDrawable>() {
                                                 @Override
                                                 public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
@@ -373,6 +402,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                                 }
                                             })
                                             .into(imageView);
+                                    hideProgressDialog();
                                 } catch (Exception ex) {
                                     ex.printStackTrace();
                                 }
@@ -381,21 +411,45 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             }
                         });
 
-                        marker = googleMap.addMarker(new MarkerOptions()
-                                .position(latLng).title(str.get(0).caption)
-                                .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + str.get(0).Filename + "?alt=media&token=1"));
+                        if (str.get(0).MediaId.contains("I_")) {
+                            marker = googleMap.addMarker(new MarkerOptions()
+                                    .position(latLng).title(str.get(0).caption + "~" + s2 + "~"+str.get(0).MediaId)
+                                    .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + str.get(0).Filename + "?alt=media&token=1" + "~" + str.get(0).MediaId));
+
+
+                        } else {
+                            marker = googleMap.addMarker(new MarkerOptions()
+                                    .position(latLng).title(str.get(0).caption + "~" + s2 + "~"+str.get(0).MediaId)
+                                    .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/Thumbnails%2F" + str.get(0).thumbnail + "?alt=media&token=1" + "~" + str.get(0).MediaId));
+                        }
 
                         googleMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
                             @Override
                             public void onInfoWindowClick(Marker marker) {
-                                /*for (int i=0; i<revList.size(); i++) {
-                                    if (revList.get(i).Latitude
-                                            .equals(marker.getTitle())) {
-                                        Log.d(TAG, "matched: "
-                                                + revList.get(i).caption);
-                                    }
-                                }*/
-                                //Log.d(TAG, "windowClick: " + str.get(0).caption);
+                                Geocoder geocoder = new Geocoder(HomeActivity.this,
+                                        Locale.getDefault());
+                                String addr="";
+                                try {
+                                    List<Address> addresses = geocoder.getFromLocation(marker.getPosition().latitude,
+                                            marker.getPosition().longitude, 1);
+                                    Address objAddr = addresses.get(0);
+                                    addr = objAddr.getLocality();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+
+                                String key = marker.getTitle().split("~")[1];
+                                ArrayList<AlbumDetails> alist = revMap.get(key);
+
+                                Intent intentAlbumsPage = new Intent(getApplicationContext(), viewPostsActivity.class);
+                                intentAlbumsPage.putExtra("listOfImages", alist);
+                                intentAlbumsPage.putExtra("name", name);
+                                intentAlbumsPage.putExtra("email", email);
+                                intentAlbumsPage.putExtra("photoUri", photoUri.toString());
+                                intentAlbumsPage.putExtra("lat", addr);
+                                marker.hideInfoWindow();
+
+                                startActivity(intentAlbumsPage);
                             }
                         });
                     }
@@ -452,15 +506,49 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         });
     }
 
+    public void showProgressDialog(String title, String message) {
+        mProgressDialog = new ProgressDialog(HomeActivity.this);
+        mProgressDialog.setTitle(title);
+        mProgressDialog.setMessage(message);
+        mProgressDialog.setIndeterminate(true);
+
+        mProgressDialog.show();
+    }
+
+    public void hideProgressDialog() {
+        if (mProgressDialog != null && mProgressDialog.isShowing()) {
+            mProgressDialog.dismiss();
+        }
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
 
-        Toast.makeText(HomeActivity.this, "Inside onStart() Method", Toast.LENGTH_SHORT).show();
         View viewSnackbar = findViewById(android.R.id.content);
-        Snackbar.make(viewSnackbar, "logged in as:" + name, Snackbar.LENGTH_LONG).show();
-        //db = FirebaseDatabase.getInstance();
-        //firebaseUser = mAuth.getCurrentUser();
+        String nameNew;
+        if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
+            Intent intent = getIntent();
+
+            nameNew = intent.getStringExtra("name");
+            Snackbar.make(viewSnackbar, "logged in as:" + nameNew, Snackbar.LENGTH_LONG).show();
+        } else {
+            nameNew = SaveSharedPref.getUsername(getApplicationContext());
+            Snackbar.make(viewSnackbar, "Welcome back " + nameNew, Snackbar.LENGTH_LONG).show();
+        }
+
+        /*if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
+            Intent intent = getIntent();
+            name = intent.getStringExtra("name");
+            email = intent.getStringExtra("email");
+            photoUri = intent.getStringExtra("photoUri");
+            userId = intent.getStringExtra("userId");
+        } else {
+            name = SaveSharedPref.getUsername(getApplicationContext());
+            email = SaveSharedPref.getEmail(getApplicationContext());
+            photoUri = SaveSharedPref.getPhotoUri(getApplicationContext());
+            userId = SaveSharedPref.getUserId(getApplicationContext());
+        }*/
     }
 
     public void openImageChooser() {
@@ -589,19 +677,22 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        //DriveId driveId;
         long fileSize;
 
         switch (requestCode) {
             case REQUEST_IMAGE_CAPTURE:
                 if (resultCode == RESULT_OK) {
-                    Toast.makeText(this,
-                            "from image chooser", Toast.LENGTH_SHORT).show();
                     showLock = true;
+                    String date = new SimpleDateFormat("yyyyMddHHMMSS", Locale.ENGLISH)
+                            .format(new Date());
                     Bundle bundle = data.getExtras();
                     Bitmap bitmap1 = (Bitmap) bundle.get("data");
 
-                    showPhotoDialog(bitmap1);
+                    File imageSavedFile = saveFileToStorage("IMG_" + date + ".png", bitmap1);
+                    Log.d(TAG, "filePath: "+imageSavedFile);
+                    Uri uri = Uri.fromFile(imageSavedFile);
+
+                    showPhotoDialog(uri);
                 }
                 break;
             case REQUEST_VIDEO_CAPTURE:
@@ -651,11 +742,34 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
+    public File saveFileToStorage(String fileName, Bitmap bitmap) {
+        String sdcard = Environment.getExternalStoragePublicDirectory
+                (Environment.DIRECTORY_PICTURES).toString()
+                + File.separator + "IRecall_Images";
+        File filePath = new File(sdcard, fileName);
+        FileOutputStream stream = null;
+
+        try {
+            stream = new FileOutputStream(filePath);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+            stream.flush();
+            stream.close();
+            MediaStore.Images.Media.insertImage
+                    (getContentResolver(), bitmap, filePath.getPath(), fileName);
+            Log.d(TAG, "File was successfully saved..");
+        } catch (FileNotFoundException fileNotFound) {
+            Log.d(TAG, "File wasn't found...");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return filePath;
+    }
+
     public static String getPath(final Context context, final Uri uri) {
         final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
 
         if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
-            //External Storage Provider
             if (isExternalStorageDoc(uri)) {
                 final String docId = DocumentsContract.getDocumentId(uri);
                 final String[] split = docId.split(":");
@@ -734,9 +848,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onResume() {
         super.onResume();
-
-        View viewSnackbar = findViewById(android.R.id.content);
-        Snackbar.make(viewSnackbar, "Welcome back " + name, Snackbar.LENGTH_LONG).show();
     }
 
     @Override
@@ -761,6 +872,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final ImageView videoView = (ImageView) dialogView.findViewById(R.id.imgPhoto);
+
+        Log.d(TAG, "File name: "+fileName);
 
         Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(fileName, MediaStore.Images.Thumbnails.MINI_KIND);
         videoView.setImageBitmap(thumbnail);
@@ -810,13 +923,27 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public void uploadVideoToFirebase(File file, String caption) {
-        final String timestamp = new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH)
+        final String timestamp = new SimpleDateFormat("yyyyMMddHHmmss")
                 .format(new Date());
         final String strCapt = caption;
 
         Uri fileVideo = Uri.fromFile(file);
+        File sdcard = new File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                VIDEO_DIR_NAME);
+        thumbnailName = sdcard.getPath() + File.separator
+                + "VID_" + System.currentTimeMillis() + ".mp4";
+        Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(fileName,
+                MediaStore.Images.Thumbnails.MINI_KIND);
+        File fileThumb = saveThumbnail("VID_" + System.currentTimeMillis()+".png"
+                , sdcard
+                , thumbnail);
+        final Uri thumbnailUri = Uri.fromFile(fileThumb);
+
         StorageReference videoRef = storageReference.child("IRecall")
                 .child(fileVideo.getLastPathSegment());
+        final StorageReference thumbRef = storageReference.child("Thumbnails")
+                .child(thumbnailUri.getLastPathSegment());
         UploadTask videoUpload = videoRef.putFile(fileVideo);
 
         videoUpload.addOnFailureListener(HomeActivity.this, new OnFailureListener() {
@@ -827,17 +954,57 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                String date = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.ENGLISH)
+                final String date = new SimpleDateFormat("yyyyMMddHHmmss")
                         .format(new Date());
                 Log.d(TAG, "Video uploaded successfully");
-                addDbValues("VID_" + timestamp + ".mp4", strCapt,
-                        Double.parseDouble(latitudeAlbum),
-                        Double.parseDouble(longitudeAlbum), "V", date);
-                Toast.makeText(HomeActivity.this,
-                        "Video uploaded successfully",
-                        Toast.LENGTH_SHORT).show();
+                UploadTask thumbUpload = thumbRef.putFile(thumbnailUri);
+                thumbUpload.addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        Log.d(TAG, "Name of Thumbnail: "+thumbnailName);
+                        addDbValues("VID_" + timestamp + ".mp4"/*fileName*/, strCapt,
+                                Double.parseDouble(latitudeAlbum),
+                                Double.parseDouble(longitudeAlbum), "V", date,
+                                thumbnailName);
+                        Toast.makeText(HomeActivity.this,
+                                "Video uploaded successfully",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }).addOnFailureListener(HomeActivity.this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d(TAG, "Error while uploading the thumbnail from gallery");
+                    }
+                });
             }
         });
+    }
+
+    public File saveThumbnail(String filename, File sdcard, Bitmap bitmap) {
+        OutputStream stream = null;
+
+        File file = new File(filename);
+        if (file.exists()) {
+            file.delete();
+            file = new File(sdcard, filename);
+            Log.e("file exist", "" + file + ",Bitmap= " + filename);
+        }
+
+        file = new File(sdcard, filename);
+        try {
+            /*Bitmap bitmap = BitmapFactory.decodeFile(file.getName());
+
+            */stream = new FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+            stream.flush();
+            stream.close();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        Log.d("file", "" + file);
+        thumbnailName = filename;
+        return file;
     }
 
     public void showSelectedImageDialog(Uri bitmap) {
@@ -1003,7 +1170,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void addDbValues(String filename, String caption, double latitude, double longitude,
-                           String mediaIdentify, String date) {
+                           String mediaIdentify, String date, String thumbnailName) {
         Random random = new Random();
 
         Log.d(TAG, "Album123456: " + albumid);
@@ -1023,11 +1190,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         map.put("Latitude", Double.toString(latitude));
         map.put("Longitude", Double.toString(longitude));
         map.put("Date", date);
+        map.put("Thumbnail", thumbnailName);
 
         firebase.push().setValue(map);
     }
 
-    public void showPhotoDialog(Bitmap bmp) {
+    public void showPhotoDialog(Uri imageUri) {
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this, R.style.AppCompatAlertDialog);
         LayoutInflater layoutInflater = this.getLayoutInflater();
         final ViewGroup viewGroup = new RelativeLayout(HomeActivity.this);
@@ -1038,7 +1206,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         final EditText txtCaption = (EditText) dialogView.findViewById(R.id.txtBoxCaption);
         final ImageView photoImg = (ImageView) dialogView.findViewById(R.id.imgPhoto);
 
-        photoImg.setImageBitmap(bmp);
+        Glide.with(this)
+                .load(imageUri)
+                .into(photoImg);
 
         String positiveText = getString(android.R.string.ok);
         dialogBuilder.setPositiveButton(positiveText, new DialogInterface.OnClickListener() {
@@ -1076,14 +1246,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         final String strCapt = caption;
 
         StorageReference imageStorage = storageReference.child("IRecall")
-                .child("IMG_" + timestamp + ".jpg");
+                .child("IMG_" + timestamp + ".png");
         photoImg.setDrawingCacheEnabled(true);
         photoImg.buildDrawingCache();
 
         Bitmap bitmap = photoImg.getDrawingCache();
         ByteArrayOutputStream outputStream =
                 new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100,
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100,
                 outputStream);
         byte[] data = outputStream.toByteArray();
 
@@ -1103,8 +1273,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         Toast.LENGTH_SHORT).show();
                 String date = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.ENGLISH)
                         .format(new Date());
-                addDbValues("IMG_" + timestamp + ".jpg", strCapt,
-                        21.170240,72.831061, "I", date);
+                addDbValues("IMG_" + timestamp + ".png", strCapt,
+                        Double.parseDouble(latitudeAlbum),
+                        Double.parseDouble(longitudeAlbum), "I", date, "");
                 downloadUri = taskSnapshot.getDownloadUrl();
                 Log.d(TAG, "Uri: " + downloadUri);
             }
@@ -1113,8 +1284,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     private void loadLatLong() {
         albumid = "";
-        firebase.startAt().addChildEventListener(new ChildEventListener() {
+        latitudeAlbum = Double.toString(latitude);
+        longitudeAlbum = Double.toString(longitude);
 
+        firebase.startAt().addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 Map map = dataSnapshot.getValue(Map.class);
@@ -1131,7 +1304,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 if (map.size() > 0) {
                     if (album.equalsIgnoreCase("same")) {
-                       albumid = map.get("AlbumId").toString();
+                        albumid = map.get("AlbumId").toString();
                         Log.d(TAG,"album id:: "+ albumid);
                         longitudeAlbum = map.get("Longitude").toString();
                         latitudeAlbum = map.get("Latitude").toString();
@@ -1211,8 +1384,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        //Log.d(TAG, "GoogleApiClient connection failed");
-
         if (!connectionResult.hasResolution()) {
             GoogleApiAvailability.getInstance().getErrorDialog(this, connectionResult.getErrorCode(), 0).show();
 
@@ -1256,7 +1427,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void signOut() {
-        // Firebase sign out
         mAuth.signOut();
 
         // Google sign out

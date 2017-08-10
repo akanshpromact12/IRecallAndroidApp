@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private FirebaseAuth mAuth;
     private FirebaseUser user;
     public ProgressDialog mProgressDialog;
+    public boolean displayMsg;
 
     @Override
     protected void onStart() {
@@ -52,7 +53,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         mAuth = FirebaseAuth.getInstance();
 
         if (SaveSharedPref.getToken(MainActivity.this).length()==0){

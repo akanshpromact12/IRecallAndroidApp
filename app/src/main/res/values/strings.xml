@@ -38,4 +38,7 @@
     <string name="exit">Exit</string>
     <string name="exitMsg">Do you really want to exit?</string>
     <string name="loading">Please wait...</string>
+
+    <string name="share_string">Share</string>
+    <string name="fireImage">Image from Firebase Db</string>
 </resources>
