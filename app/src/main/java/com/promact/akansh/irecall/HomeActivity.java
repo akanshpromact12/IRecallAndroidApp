@@ -8,13 +8,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Build;
@@ -144,6 +142,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     public Marker marker;
     public long childrenCount=0;
     public boolean showLock = false;
+    public boolean isGPSEnabled = false;
+    public boolean isNetworkEnabled = false;
+    public boolean canGetLocation = false;
+    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10;
+    private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 1;
+    public Location location;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -169,17 +173,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
 
         TextView txt = (TextView) findViewById(R.id.txtView1);
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        strCaption = "";
-        try{
-            if (locationManager.getAllProviders().contains(LocationManager.GPS_PROVIDER)){
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-            }
-
-        } catch (SecurityException e){
-            Log.e("Location: ", e.getMessage());
-        }
-
+        getLocation();
         String userId;
 
         if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
@@ -259,6 +253,59 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         });
 
         nav.setNavigationItemSelectedListener(this);
+    }
+
+    public Location getLocation() {
+        LocationManager locationManager = (LocationManager) HomeActivity.this.getApplicationContext().getSystemService(LOCATION_SERVICE);
+        strCaption = "";
+        isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+        try{
+            if (!isGPSEnabled && !isNetworkEnabled){
+
+            } else {
+                canGetLocation = true;
+
+                if (isNetworkEnabled) {
+                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,
+                            MIN_TIME_BW_UPDATES,
+                            MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
+
+                    if (locationManager != null) {
+                        location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                        if (location != null) {
+                            latitude = location.getLatitude();
+                            longitude = location.getLongitude();
+
+                            Log.d(TAG, "Latitude: "+latitude+" long: "+longitude);
+                        }
+                    }
+                }
+
+                if (isGPSEnabled) {
+                    if (location == null) {
+                        locationManager.requestLocationUpdates(
+                                LocationManager.GPS_PROVIDER,
+                                MIN_TIME_BW_UPDATES,
+                                MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
+                        Log.d("GPS Enabled", "GPS Enabled");
+                        if (locationManager != null) {
+                            location = locationManager
+                                    .getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                            if (location != null) {
+                                latitude = location.getLatitude();
+                                longitude = location.getLongitude();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (SecurityException e){
+            Log.e("Location: ", e.getMessage());
+        }
+
+        return location;
     }
 
     @Override
@@ -525,6 +572,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     protected void onStart() {
         super.onStart();
 
+        //getLocation();
+
         View viewSnackbar = findViewById(android.R.id.content);
         String nameNew;
         if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
@@ -573,10 +622,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onLocationChanged(Location location) {
-        latitude = location.getLatitude();
-        longitude = location.getLongitude();
-
-        Log.d(TAG, "lattitude: " + latitude + " longitude " + longitude);
     }
 
     @Override
@@ -994,7 +1039,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         try {
             /*Bitmap bitmap = BitmapFactory.decodeFile(file.getName());
 
-            */stream = new FileOutputStream(file);
+            */
+            stream = new FileOutputStream(file);
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
             stream.flush();
             stream.close();
@@ -1025,7 +1071,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 strCaption = txtCaption.getText().toString();
                 Log.d(TAG, "caption: " + strCaption);
 
-                uploadGalleryImageToFirebase(pathImgGallery);
+                uploadGalleryImageToFirebase(pathImgGallery, strCaption);
 
                 AlertDialog alert = dialogBuilder.create();
                 alert.cancel();
@@ -1050,8 +1096,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         alertDialog.show();
     }
 
-    public void uploadGalleryImageToFirebase(String galleryImage) {
+    public void uploadGalleryImageToFirebase(String galleryImage, final String caption) {
         Uri file = Uri.fromFile(new File(galleryImage));
+        final String filenm = file.getLastPathSegment();
+        final String date = new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH)
+                .format(new Date());
         StorageReference galleryRef = storageReference.child("IRecall")
                 .child(file.getLastPathSegment());
         UploadTask galleryImgUpload = galleryRef.putFile(file);
@@ -1065,6 +1114,9 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                 Log.d(TAG, "Uploading image from gallery successful");
+                addDbValues(filenm, caption,
+                        Double.parseDouble(latitudeAlbum),
+                        Double.parseDouble(longitudeAlbum), "I", date, "");
                 Toast.makeText(HomeActivity.this,
                         "Gallery image successfully uploaded",
                         Toast.LENGTH_SHORT).show();
@@ -1092,7 +1144,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 strCaption = txtCaption.getText().toString();
                 Log.d(TAG, "caption: " + strCaption);
 
-                uploadGalleryVideoToFirebase(pathVideoGallery);
+                uploadGalleryVideoToFirebase(pathVideoGallery, strCaption);
 
                 AlertDialog alert = dialogBuilder.create();
                 alert.cancel();
@@ -1117,12 +1169,27 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         alertDialog.show();
     }
 
-    public void uploadGalleryVideoToFirebase(String galleryVideo) {
+    public void uploadGalleryVideoToFirebase(String galleryVideo, final String caption) {
         Uri file = Uri.fromFile(new File(galleryVideo));
+        final String filenm = file.getLastPathSegment();
+        File sdcard = new File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                VIDEO_DIR_NAME);
+        thumbnailName = sdcard.getPath() + File.separator
+                + filenm;
+        Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(file.getPath(),
+                MediaStore.Images.Thumbnails.MINI_KIND);
+        File fileThumb = saveThumbnail(filenm.replace(".mp4", ".png"),
+                sdcard,
+                thumbnail);
+        final Uri thumbnailUri = Uri.fromFile(fileThumb);
         StorageReference galleryRef = storageReference.child("IRecall")
                 .child(file.getLastPathSegment());
+        final StorageReference thumbRef = storageReference.child("Thumbnails")
+                .child(thumbnailUri.getLastPathSegment());
         UploadTask galleryImgUpload = galleryRef.putFile(file);
-
+        final String date = new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH)
+                .format(new Date());
         galleryImgUpload.addOnFailureListener(HomeActivity.this, new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception e) {
@@ -1132,9 +1199,25 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                 Log.d(TAG, "Video from gallery uploaded successfully.");
-                Toast.makeText(HomeActivity.this,
-                        "Gallery video successfully uploaded",
-                        Toast.LENGTH_SHORT).show();
+
+                UploadTask thumbUpload = thumbRef.putFile(thumbnailUri);
+                thumbUpload.addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        addDbValues(filenm, caption,
+                                Double.parseDouble(latitudeAlbum),
+                                Double.parseDouble(longitudeAlbum), "V", date,
+                                thumbnailName);
+                        Toast.makeText(HomeActivity.this,
+                                "Gallery video successfully uploaded",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }).addOnFailureListener(HomeActivity.this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d(TAG, "Error while uploading the thumbnail from gallery");
+                    }
+                });
             }
         });
     }
@@ -1287,7 +1370,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         latitudeAlbum = Double.toString(latitude);
         longitudeAlbum = Double.toString(longitude);
 
-        firebase.startAt().addChildEventListener(new ChildEventListener() {
+        firebase.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 Map map = dataSnapshot.getValue(Map.class);
@@ -1298,7 +1381,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 double longi = Double.parseDouble(map.get("Longitude").toString());
 
                 Log.d(TAG, "values-" + " latitude: " + lat + " longitude: " + longi);
-                String album = calcDistance(latitude, longitude, lat, longi);
+                String album = calcDistance(Double.parseDouble(latitudeAlbum),
+                        Double.parseDouble(longitudeAlbum), lat, longi);
                 Random random = new Random();
                 newStr[j] = "lat: "+lat+" long: "+longi;
 
@@ -1318,6 +1402,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     longitudeAlbum = Double.toString(longitude);
                     latitudeAlbum = Double.toString(latitude);
                 }
+                Log.d(TAG, "lat abc: "+latitudeAlbum+" long abc: "
+                +longitudeAlbum);
             }
 
             @Override
