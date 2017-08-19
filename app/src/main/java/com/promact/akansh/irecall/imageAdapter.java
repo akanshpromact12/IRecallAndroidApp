@@ -21,7 +21,9 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
+import com.google.firebase.crash.FirebaseCrash;
 import com.squareup.picasso.Picasso;
+import com.testfairy.TestFairy;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,13 +35,16 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
     private ArrayList<AlbumDetails> arrayAlbumDets;
     private Context context;
     private String latLng;
+    private String flavorName;
     private static final int STATIC_CARD = 0;
     private static final int DYNAMIC_CARD = 1;
 
-    ImageAdapter(Context context, ArrayList<AlbumDetails> arrayAlbumDets, String latLng) {
+    ImageAdapter(Context context, ArrayList<AlbumDetails> arrayAlbumDets, String latLng ,
+                 String flavorName) {
         this.arrayAlbumDets = arrayAlbumDets;
         this.context = context;
         this.latLng = latLng;
+        this.flavorName = flavorName;
     }
 
     @Override
@@ -60,53 +65,100 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
 
     @Override
     public void onBindViewHolder(final ImageAdapter.ImageHolder holder, final int position) {
-        //Log.d("MediaId: ", arrayAlbumDets.get(position).MediaId.contains("I_") + "");
         Bitmap bitmap = null;
         if (arrayAlbumDets.get(position).MediaId.contains("I_")) {
             holder.playButton.setVisibility(View.GONE);
-            Glide.with(context)
-                    .load("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1")
-                    .listener(new RequestListener<String, GlideDrawable>() {
-                        @Override
-                        public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
-                            e.printStackTrace();
+            if (flavorName.equals("development")) {
+                Glide.with(context)
+                        .load("https://firebasestorage.googleapis.com/v0/b/irecall-49ac4.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1")
+                        .listener(new RequestListener<String, GlideDrawable>() {
+                            @Override
+                            public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                                e.printStackTrace();
 
-                            return false;
-                        }
-
-                        @Override
-                        public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
-                            if (!isFromMemoryCache) {
-                                resource.start();
+                                return false;
                             }
 
-                            return false;
-                        }
-                    })
-                    .into(holder.image);
+                            @Override
+                            public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                                if (!isFromMemoryCache) {
+                                    resource.start();
+                                }
+
+                                return false;
+                            }
+                        })
+                        .into(holder.image);
+            } else {
+                Glide.with(context)
+                        .load("https://firebasestorage.googleapis.com/v0/b/irecall-production.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1")
+                        .listener(new RequestListener<String, GlideDrawable>() {
+                            @Override
+                            public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                                e.printStackTrace();
+
+                                return false;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                                if (!isFromMemoryCache) {
+                                    resource.start();
+                                }
+
+                                return false;
+                            }
+                        })
+                        .into(holder.image);
+            }
         } else {
-            Glide.with(context)
-                    .load("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/Thumbnails%2F"+ arrayAlbumDets.get(position).thumbnail +"?alt=media&token=1")
-                    .listener(new RequestListener<String, GlideDrawable>() {
-                        @Override
-                        public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
-                            e.printStackTrace();
+            if (flavorName.equals("development")) {
+                Glide.with(context)
+                        .load("https://firebasestorage.googleapis.com/v0/b/irecall-49ac4.appspot.com/o/Thumbnails%2F"+ arrayAlbumDets.get(position).thumbnail +"?alt=media&token=1")
+                        .listener(new RequestListener<String, GlideDrawable>() {
+                            @Override
+                            public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                                e.printStackTrace();
 
-                            return false;
-                        }
-
-                        @Override
-                        public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
-                            if (!isFromMemoryCache) {
-                                resource.start();
+                                return false;
                             }
 
-                            return false;
-                        }
-                    })
-                    .centerCrop()
-                    .fitCenter()
-                    .into(holder.image);
+                            @Override
+                            public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                                if (!isFromMemoryCache) {
+                                    resource.start();
+                                }
+
+                                return false;
+                            }
+                        })
+                        .centerCrop()
+                        .fitCenter()
+                        .into(holder.image);
+            } else {
+                Glide.with(context)
+                        .load("https://firebasestorage.googleapis.com/v0/b/irecall-production.appspot.com/o/Thumbnails%2F"+ arrayAlbumDets.get(position).thumbnail +"?alt=media&token=1")
+                        .listener(new RequestListener<String, GlideDrawable>() {
+                            @Override
+                            public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                                e.printStackTrace();
+
+                                return false;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                                if (!isFromMemoryCache) {
+                                    resource.start();
+                                }
+
+                                return false;
+                            }
+                        })
+                        .centerCrop()
+                        .fitCenter()
+                        .into(holder.image);
+            }
             holder.playButton.setVisibility(View.VISIBLE);
 
             holder.playButton.bringToFront();
@@ -115,7 +167,11 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
         holder.shareButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                shareMedia("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1", holder, position, v);
+                if (flavorName.equals("development")) {
+                    shareMedia("https://firebasestorage.googleapis.com/v0/b/irecall-49ac4.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1", holder, position, v);
+                } else {
+                    shareMedia("https://firebasestorage.googleapis.com/v0/b/irecall-production.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1", holder, position, v);
+                }
             }
         });
         holder.caption.setText(arrayAlbumDets.get(position).caption);
@@ -125,6 +181,7 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
 
                 Intent intent = new Intent(view.getContext(), photoView.class);
                 intent.putExtra("media", arrayAlbumDets.get(position).Filename);
+                intent.putExtra("flavorName", flavorName);
 
                 view.getContext().startActivity(intent);
             }
@@ -142,7 +199,12 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
 
         try {
             mediaMetadataRetriever = new MediaMetadataRetriever();
-            Uri uri = Uri.parse("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1");
+            Uri uri = null;
+            if (flavorName.equals("development")) {
+                uri = Uri.parse("https://firebasestorage.googleapis.com/v0/b/irecall-49ac4.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1");
+            } else {
+                uri = Uri.parse("https://firebasestorage.googleapis.com/v0/b/irecall-production.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1");
+            }
             mediaMetadataRetriever.setDataSource(context, uri);
 
             bitmap = mediaMetadataRetriever.getFrameAtTime(2000000, MediaMetadataRetriever.OPTION_CLOSEST);
@@ -150,6 +212,7 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
             return bitmap;
         } catch (Exception e) {
             e.printStackTrace();
+            FirebaseCrash.report(e);
         } finally {
             if (mediaMetadataRetriever != null) {
                 mediaMetadataRetriever.release();
@@ -187,7 +250,12 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
 
             shareIntent.setType("text/plain");
-            shareIntent.putExtra(Intent.EXTRA_TEXT, "Hey. Check the video out -- https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1");
+            if (flavorName.equals("development")) {
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "Hey. Check the video out - \n https://firebasestorage.googleapis.com/v0/b/irecall-49ac4.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1");
+            } else {
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "Hey. Check the video out - \n https://firebasestorage.googleapis.com/v0/b/irecall-production.appspot.com/o/IRecall%2F" + arrayAlbumDets.get(position).Filename + "?alt=media&token=1");
+            }
+
 
             v.getContext().startActivity(Intent.createChooser(shareIntent, "Share Video"));
         }
@@ -204,6 +272,7 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
             uri = Uri.fromFile(file);
         } catch (Exception ex) {
             ex.getMessage();
+            FirebaseCrash.report(ex);
         }
 
         return uri;
@@ -220,8 +289,6 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
         private Button shareButton;
         private TextView caption;
         private TextView location;
-        private RelativeLayout relativeLayout;
-        //private VideoView video;
 
         ImageHolder(View view) {
             super(view);
@@ -231,8 +298,6 @@ class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
             shareButton = (Button) view.findViewById(R.id.shareButton);
             caption = (TextView) view.findViewById(R.id.textViewCaption);
             location = (TextView) view.findViewById(R.id.txtTitleLocation);
-            relativeLayout = (RelativeLayout) view.findViewById(R.id.cardRelative);
-            //video = (VideoView) view.findViewById(R.id.video_view);
         }
     }
 }

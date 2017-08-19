@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "806052341831",
+    "firebase_url": "https://irecall-production.firebaseio.com",
+    "project_id": "irecall-production",
+    "storage_bucket": "irecall-production.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:806052341831:android:5d016e226fcc864d",
+        "android_client_info": {
+          "package_name": "com.promact.akansh.irecall"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "806052341831-p07kt3k84r4fh7rg61nebpjnr4ddig5i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.promact.akansh.irecall",
+            "certificate_hash": "666d600218dc4c5ce1fc7595b3f3d34cce9aab5d"
+          }
+        },
+        {
+          "client_id": "806052341831-ou0c94s0m40e39snschll7i6n63090qp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwSdqC2mfoOhIPXu-nNuiwWkO_PJy9k2c"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "806052341831-ou0c94s0m40e39snschll7i6n63090qp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

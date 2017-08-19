@@ -12,6 +12,7 @@ import android.view.MenuItem;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.testfairy.TestFairy;
 
 import java.util.ArrayList;
 
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 public class viewPostsActivity extends AppCompatActivity implements /*NavigationView.OnNavigationItemSelectedListener, */GoogleApiClient.OnConnectionFailedListener {
     public static String TAG="viewPostActivity";
     ArrayList<AlbumDetails> images;
+    String flavorName;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -32,6 +34,7 @@ public class viewPostsActivity extends AppCompatActivity implements /*Navigation
         Intent intent = getIntent();
 
         latLng = intent.getStringExtra("lat");
+        flavorName = intent.getStringExtra("flavorName");
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbarViewPost);
         setSupportActionBar(toolbar);
@@ -51,8 +54,14 @@ public class viewPostsActivity extends AppCompatActivity implements /*Navigation
             Log.d(TAG, "images: "+images.get(i).caption);
         }
 
-        ImageAdapter adapter = new ImageAdapter(viewPostsActivity.this, images, latLng);
+        ImageAdapter adapter = new ImageAdapter(viewPostsActivity.this, images, latLng,
+                flavorName);
         recyclerView.setAdapter(adapter);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
     }
 
     @Override

@@ -18,13 +18,15 @@ public class AlbumDetails implements Comparable, Serializable {
     public String MediaId;
     public String caption;
     public String thumbnail;
+    public String MediaType;
 
     @JsonCreator
     public AlbumDetails(@JsonProperty("AlbumId") String AlbumId, @JsonProperty("Date") String Date,
                  @JsonProperty("Filename") String Filename, @JsonProperty("Latitude") String Latitude,
                  @JsonProperty("Longitude") String Longitude, @JsonProperty("MediaId") String MediaId,
                  @JsonProperty("caption") String caption,
-                 @JsonProperty("Thumbnail") String thumbnail) {
+                 @JsonProperty("Thumbnail") String thumbnail,
+                 @JsonProperty("MediaType") String MediaType) {
         this.AlbumId = AlbumId;
         this.Date = Date;
         this.Filename = Filename;
@@ -33,6 +35,7 @@ public class AlbumDetails implements Comparable, Serializable {
         this.MediaId = MediaId;
         this.caption = caption;
         this.thumbnail = thumbnail;
+        this.MediaType = MediaType;
     }
 
     @Override

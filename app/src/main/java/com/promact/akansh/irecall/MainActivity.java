@@ -1,5 +1,6 @@
 package com.promact.akansh.irecall;
 
+        import android.app.Activity;
         import android.app.ProgressDialog;
         import android.content.Intent;
         import android.content.pm.PackageManager;
@@ -10,6 +11,8 @@ package com.promact.akansh.irecall;
         import android.support.v4.content.ContextCompat;
         import android.support.v7.app.AppCompatActivity;
         import android.os.Bundle;
+        import android.support.v7.appcompat.*;
+        import android.support.v7.appcompat.BuildConfig;
         import android.util.Log;
         import android.view.View;
         import android.widget.Toast;
@@ -27,6 +30,7 @@ package com.promact.akansh.irecall;
         import com.google.firebase.auth.FirebaseAuth;
         import com.google.firebase.auth.FirebaseUser;
         import com.google.firebase.auth.GoogleAuthProvider;
+        import com.testfairy.TestFairy;
 
         import android.Manifest;
 
@@ -39,7 +43,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private FirebaseAuth mAuth;
     private FirebaseUser user;
     public ProgressDialog mProgressDialog;
-    public boolean displayMsg;
+    public String webClientId;
 
     @Override
     protected void onStart() {
@@ -50,14 +54,42 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mAuth = FirebaseAuth.getInstance();
 
+        if (BuildConfig.BUILD_TYPE.equals("release")) {
+            /*if (BuildConfig.FLAVOR.equals("development")) {
+
+            } else {
+
+            }*/
+            webClientId = "806052341831-ou0c94s0m40e39snschll7i6n63090qp.apps.googleusercontent.com";
+        } else {
+            /*if (BuildConfig.FLAVOR.equals("development")) {
+
+            } else {
+
+            }*/
+            webClientId = "120943393124-ficgm3eeaa7gqv605q5f39q27lbuablm.apps.googleusercontent.com";
+        }
         if (SaveSharedPref.getToken(MainActivity.this).length()==0){
-            //This code is for configuring the sign-in in order to request the user's name and email;
-            GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build();
+            Log.d(TAG, "clientId: "+getString(R.string.default_web_client_id));
+            Toast.makeText(this,
+                    "clientId: "+getString(R.string.default_web_client_id),
+                    Toast.LENGTH_LONG).show();
+            GoogleSignInOptions options = new GoogleSignInOptions
+                    .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken(getString(R.string.default_web_client_id))
+                    //.requestIdToken(webClientId)
+                    .requestEmail()
+                    .build();
 
             //The next step is to build a GoogleApiClient
             final GoogleApiClient googleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
@@ -139,13 +171,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
         if (requestCode == RC_SIGN_IN){
             GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
-            Log.d(TAG, "In google sing in method");
+            Log.d(TAG, "In google sign in method");
             handleSignInResult(result);
         }
     }
 
     public void handleSignInResult(GoogleSignInResult result){
         Log.d(TAG, "handleSignInResult " + result.isSuccess());
+        Log.d(TAG, "result exception: " + result.getStatus());
 
         if (result.isSuccess()){
             final GoogleSignInAccount account = result.getSignInAccount();
@@ -194,6 +227,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                             photoUri = account.getPhotoUrl();
 
                             Log.d(TAG, "id_of: " + user.getUid());
+                            TestFairy.log(TAG, "id_of: " + user.getUid());
 
                             Intent intent = new Intent(MainActivity.this, HomeActivity.class);
                             intent.putExtra("idToken", idToken);
@@ -208,6 +242,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                         } else {
                             Toast.makeText(MainActivity.this, "Authentication unsuccessful",
                                     Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "Authentication successful: \n" +
+                            task.getException().getMessage());
+                            TestFairy.log(TAG, "Authentication successful: \n" +
+                            task.getException().getMessage());
                         }
 
                         hideProgressDialog();

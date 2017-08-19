@@ -1,10 +1,26 @@
 apply plugin: 'com.android.application'
 apply plugin: 'testfairy'
+apply plugin: 'deploygate'
+
+repositories {
+    maven {
+        url 'https://jitpack.io'
+    }
+}
 
 android {
     signingConfigs {
-        productionrelease {
-            storeFile file('C:/Users/Akansh/keystores/keys.jks')
+        release {
+            keyAlias 'newkeys'
+            keyPassword 'android'
+            storeFile file('C:/Users/Akansh/keystores/newKeys.jks')
+            storePassword 'android'
+        }
+        debugConfig {
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeFile file('C:/Users/Akansh/.android/debug.keystore')
+            storePassword 'android'
         }
     }
     compileSdkVersion 25
@@ -14,7 +30,7 @@ android {
     }
     defaultConfig {
         applicationId "com.promact.akansh.irecall"
-        minSdkVersion 17
+        minSdkVersion 19
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
@@ -27,22 +43,26 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
         }
     }
     productFlavors {
         production {
-            minSdkVersion 17
+            minSdkVersion 19
             targetSdkVersion 25
             versionCode 1
             versionName '1.0'
+            resValue "string", "flavor_name", "production"
+            signingConfig signingConfigs.release
         }
         development {
-            minSdkVersion 17
+            minSdkVersion 19
             targetSdkVersion 25
             versionCode 1
             versionName '1.0'
+            resValue "string", "flavor_name", "development"
+            signingConfig signingConfigs.debugConfig
         }
     }
     packagingOptions {
@@ -86,11 +106,14 @@ dependencies {
     compile 'com.google.firebase:firebase-database:9.0.0'
     compile 'com.google.firebase:firebase-auth:9.0.0'
     compile 'com.google.firebase:firebase-storage:9.0.0'
+    compile 'com.google.firebase:firebase-crash:9.0.0'
     compile 'com.firebase:firebase-client-android:2.5.0'
     testCompile 'junit:junit:4.12'
     compile 'com.google.android.gms:play-services-maps:9.0.0'
     compile 'com.squareup.picasso:picasso:2.5.2'
     compile 'com.github.wseemann:FFmpegMediaMetadataRetriever:1.0.14'
+    compile 'testfairy:testfairy-android-sdk:1.+@aar'
+    compile 'com.github.LogentriesCommunity:le_android:logentries-android-4.4.1'
 }
 
 apply plugin: 'com.google.gms.google-services'

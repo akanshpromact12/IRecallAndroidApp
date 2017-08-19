@@ -1,5 +1,6 @@
 package com.promact.akansh.irecall;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.ContentUris;
 import android.content.Context;
@@ -24,6 +25,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.FileProvider;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -55,6 +57,7 @@ import com.firebase.client.MutableData;
 import com.firebase.client.Transaction;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
+import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.ConnectionResult;
@@ -71,10 +74,16 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.crash.FirebaseCrash;
+import com.google.firebase.database.Logger;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.testfairy.TestFairy;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -91,6 +100,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import com.logentries.logger.AndroidLogger;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -145,9 +155,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     public boolean isGPSEnabled = false;
     public boolean isNetworkEnabled = false;
     public boolean canGetLocation = false;
-    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10;
-    private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 1;
+    private static final long LOCATION_REFRESH_DISTANCE = 10;
+    private static final long LOCATION_REFRESH_TIME = 1000 * 60 * 1;
     public Location location;
+    public FirebaseAnalytics firebaseAnalytics;
+    public static AndroidLogger logger;
+    public LocationManager locationManager;
+    public GPSTracker gps;
+    public String folderNameFirebase;
+    public String coverPic;
+    public String flavorUrl;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -159,8 +176,20 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         mapFragment.getMapAsync(this);
 
         mAuth = FirebaseAuth.getInstance();
+        try {
+            logger = AndroidLogger.createInstance(getApplicationContext(), false,
+                    false, false, null, 0, "0e40ddd2-3720-46c9-a4c2-d8298fe432fa",
+                    true);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
 
-        storageReference = FirebaseStorage.getInstance().getReference();
+        if (getString(R.string.flavor_name).equals("development")) {
+            storageReference = FirebaseStorage.getInstance().getReference();
+        } else {
+            storageReference = FirebaseStorage.getInstance()
+                    .getReferenceFromUrl("gs://irecall-production.appspot.com");
+        }
 
         GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build();
         mGoogleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
@@ -171,6 +200,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         FloatingActionButton floatActionGallery = (FloatingActionButton) findViewById(R.id.menu_gallery_option);
         floatingActionMenu = (FloatingActionMenu) findViewById(R.id.floating_action_menu);
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
+
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this);
 
         TextView txt = (TextView) findViewById(R.id.txtView1);
         getLocation();
@@ -190,12 +221,24 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         }
 
         Log.d(TAG, "userid: " + userId);
+        logger.log("userId: " + userId);
+        Log.d("flavor name: ", getString(R.string.flavor_name));
+        logger.log("flavor name: " + getString(R.string.flavor_name));
         Firebase.setAndroidContext(getApplicationContext());
-        firebase = new Firebase("https://irecall-4dcd0.firebaseio.com/" + userId);
+        if (getString(R.string.flavor_name).equals("development")) {
+            firebase = new Firebase("https://irecall-49ac4.firebaseio.com/" + userId);
+            Log.d(TAG, "https://irecall-49ac4.firebaseio.com/" + userId);
+            logger.log("developer firebase URL: https://irecall-49ac4.firebaseio.com/" + userId);
+        } else {
+            firebase = new Firebase("https://irecall-production.firebaseio.com/" + userId);
+            Log.d(TAG, "https://irecall-production.firebaseio.com/" + userId);
+            logger.log("user firebase URL: https://irecall-production.firebaseio.com/" + userId);
+        }
 
         loadLatLong();
 
         Log.d(TAG, "id:: " + albumid);
+        logger.log("id:: " + albumid);
 
         NavigationView nav = (NavigationView) findViewById(R.id.nav_view);
         nav.setItemIconTintList(null);
@@ -255,8 +298,42 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         nav.setNavigationItemSelectedListener(this);
     }
 
-    public Location getLocation() {
-        LocationManager locationManager = (LocationManager) HomeActivity.this.getApplicationContext().getSystemService(LOCATION_SERVICE);
+    private final LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
+    };
+
+    public void getLocation() {
+        gps = new GPSTracker(HomeActivity.this);
+
+        if (gps.canGetLocation()) {
+            latitude = gps.getLatitude();
+            longitude = gps.getLongitude();
+            Toast.makeText(getApplicationContext(), "Your Location is - \nLat: "
+                    + latitude + "\nLong: " + longitude, Toast.LENGTH_LONG).show();
+            Log.d(TAG, "Your Location is - \nLat: "
+                    + latitude + "\nLong: " + longitude);
+        } else {
+            gps.showSettingsAlert();
+        }
+        /*LocationManager locationManager = (LocationManager) HomeActivity.this.getApplicationContext().getSystemService(LOCATION_SERVICE);
         strCaption = "";
         isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
         isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
@@ -279,6 +356,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                             longitude = location.getLongitude();
 
                             Log.d(TAG, "Latitude: "+latitude+" long: "+longitude);
+                            logger.log("Latitude: "+latitude+" long: "+longitude);
                         }
                     }
                 }
@@ -290,6 +368,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 MIN_TIME_BW_UPDATES,
                                 MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
                         Log.d("GPS Enabled", "GPS Enabled");
+                        logger.log("GPS Enabled");
                         if (locationManager != null) {
                             location = locationManager
                                     .getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -303,14 +382,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             }
         } catch (SecurityException e){
             Log.e("Location: ", e.getMessage());
+            FirebaseCrash.log(e.toString());
         }
 
-        return location;
+        return location;*/
     }
 
     @Override
     protected void onRestart() {
         super.onRestart();
+        getLocation();
     }
 
     @Override
@@ -330,8 +411,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         if (success) {
             Log.d(TAG, "Folder Property: Folder created successfully");
+            logger.log("Folder Property: Folder created successfully");
         } else {
             Log.d(TAG, "Folder Property: Folder creation unsuccessful/file exists");
+            logger.log("Folder Property: Folder creation unsuccessful/file exists");
         }
     }
 
@@ -365,16 +448,23 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 albumDetails = dataSnapshot.getValue(AlbumDetails.class);
                 Log.d(TAG, "str length: " + childrenCount);
+                logger.log("str length: " + childrenCount);
 
                 arrayList.add(albumDetails);
+                Log.d(TAG, "arrlist size: " + arrayList.size());
                 revMap.put(albumDetails.AlbumId, new ArrayList<AlbumDetails>());
 
                 if (arrayList.size()==childrenCount) {
-                    Log.d(TAG, "inside if condition");
+                    if (revList.size() > 0) {
+                        revList.clear();
+                    }
                     for (int i=arrayList.size()-1;i>=0; i--) {
+                        Log.d(TAG, "revList size before addition"+revList.size());
                         revList.add(arrayList.get(i));
+                        Log.d(TAG, "revList size after addition "+revList.size() + " i:" + i);
                     }
                     Log.d("revList123", "revList size: " + revList.size() + " values: " + revList.get(0).caption);
+                    logger.log("revList size: " + revList.size() + " values: " + revList.get(0).caption);
 
                     for (String key : revMap.keySet()) {
                         for (int i=0; i<revList.size(); i++) {
@@ -383,22 +473,59 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 ArrayList<AlbumDetails> imagesListOfAlbum = revMap.get(key);
                                 imagesListOfAlbum.add(album);
                                 revMap.put(key, imagesListOfAlbum);
+                                Log.d(TAG, "caption - key: " + revMap.get(key).get(0).caption);
                             }
                         }
                     }
                     Set<String> set = revMap.keySet();
 
+                    Log.d(TAG, "Children size: " + childrenCount);
                     for (String s2 : set) {
                         Log.d(TAG, "Key ----- : "+s2);
-                        ArrayList<AlbumDetails> str = revMap.get(s2);
+                        logger.log("Key ----- : "+s2);
+
+                        final ArrayList<AlbumDetails> str = revMap.get(s2);
                         for (int i=0; i<str.size(); i++) {
                             Log.d(TAG, "Values ----- " + str.get(i).caption);
+                            logger.log("Values ----- " + str.get(i).caption);
                         }
+                        final String str1 = str.get(0).caption;
+                        Log.d(TAG, "caption Map: " + str.get(0).caption);
 
                         //map start
                         LatLng latLng = new LatLng(Double.parseDouble(str.get(0).Latitude)
                                 , Double.parseDouble(str.get(0).Longitude));
                         Log.d(TAG, "LatLng" + latLng);
+                        logger.log("LatLng" + latLng);
+
+                        if (getString(R.string.flavor_name).equals("development")) {
+                            flavorUrl = "irecall-49ac4.appspot.com";
+                            if (str.get(0).MediaType.equals("IMAGE")) {
+                                folderNameFirebase = "IRecall";
+                                coverPic = str.get(0).Filename;
+                            } else {
+                                folderNameFirebase = "Thumbnails";
+                                coverPic = str.get(0).thumbnail;
+                            }
+                        } else {
+                            flavorUrl = "irecall-production.appspot.com";
+                            if (str.get(0).MediaType.equals("IMAGE")) {
+                                folderNameFirebase = "IRecall";
+                                coverPic = str.get(0).Filename;
+                            } else {
+                                folderNameFirebase = "Thumbnail";
+                                coverPic = str.get(0).thumbnail;
+                            }
+                        }
+
+                        Log.d(TAG, "arrList isze: "+str.size());
+                        Log.d(TAG, "str-caption: "+str.get(0).caption);
+
+                        marker = googleMap.addMarker(new MarkerOptions()
+                                .position(latLng).title(str1 + "~" + s2 + "~" + str.get(0).MediaId)
+                                .snippet("https://firebasestorage.googleapis.com/v0/b/" + flavorUrl + "/o/"+ folderNameFirebase +"%2F" + coverPic + "?alt=media&token=1" + "~" + str.get(0).MediaId));
+
+                        final String fireUrl = "https://firebasestorage.googleapis.com/v0/b/" + flavorUrl + "/o/"+ folderNameFirebase +"%2F" + coverPic + "?alt=media&token=1";
 
                         googleMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
                             @Override
@@ -416,7 +543,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 final TextView title = (TextView) view.findViewById(R.id.titleMarker);
                                 String isImageLoaded = marker.getId();
 
-                                if (marker.getTitle().split("~")[2].contains("I_")) {
+                                /*if (marker.getTitle().split("~")[2].contains("I_")) {*/
+                                if (str.get(0).MediaType.equals("IMAGE")) {
                                     play.setVisibility(View.GONE);
                                 } else {
                                     play.setVisibility(View.VISIBLE);
@@ -424,13 +552,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 }
 
                                 try {
-                                    title.setText(marker.getTitle().split("~")[0]);
+                                    Log.d(TAG, "title: " + marker.getTitle().split("~")[0]);
+                                    title.setText(str1);
                                     Log.d(TAG, "outside if/else");
                                     showProgressDialog("Loading Media", "Please Wait");
 
                                     Log.d(TAG, "Resource: "+marker.getSnippet().split("~")[0]);
+                                    logger.log("Resource: "+marker.getSnippet().split("~")[0]);
+
                                     Glide.with(getApplicationContext())
-                                            .load(marker.getSnippet().split("~")[0])
+                                            .load(fireUrl)
                                             .listener(new RequestListener<String, GlideDrawable>() {
                                                 @Override
                                                 public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
@@ -452,23 +583,12 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                     hideProgressDialog();
                                 } catch (Exception ex) {
                                     ex.printStackTrace();
+                                    FirebaseCrash.log(ex.toString());
                                 }
 
                                 return view;
                             }
                         });
-
-                        if (str.get(0).MediaId.contains("I_")) {
-                            marker = googleMap.addMarker(new MarkerOptions()
-                                    .position(latLng).title(str.get(0).caption + "~" + s2 + "~"+str.get(0).MediaId)
-                                    .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + str.get(0).Filename + "?alt=media&token=1" + "~" + str.get(0).MediaId));
-
-
-                        } else {
-                            marker = googleMap.addMarker(new MarkerOptions()
-                                    .position(latLng).title(str.get(0).caption + "~" + s2 + "~"+str.get(0).MediaId)
-                                    .snippet("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/Thumbnails%2F" + str.get(0).thumbnail + "?alt=media&token=1" + "~" + str.get(0).MediaId));
-                        }
 
                         googleMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
                             @Override
@@ -483,6 +603,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                     addr = objAddr.getLocality();
                                 } catch (Exception e) {
                                     e.printStackTrace();
+                                    FirebaseCrash.log(e.toString());
                                 }
 
                                 String key = marker.getTitle().split("~")[1];
@@ -494,6 +615,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                                 intentAlbumsPage.putExtra("email", email);
                                 intentAlbumsPage.putExtra("photoUri", photoUri.toString());
                                 intentAlbumsPage.putExtra("lat", addr);
+                                intentAlbumsPage.putExtra("flavorName", getString(R.string.flavor_name));
                                 marker.hideInfoWindow();
 
                                 startActivity(intentAlbumsPage);
@@ -501,11 +623,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         });
                     }
                     Log.d(TAG, "revMap size: "+revMap.size());
+                    logger.log("revMap size: "+revMap.size());
 
                     final double lat1 = latitude;
                     final double long1 = longitude;
                     LatLng currLatLng = new LatLng(lat1, long1);
                     Log.d(TAG, "filename: " + albumDetails.Filename);
+                    logger.log("filename: " + albumDetails.Filename);
                     trueCount=0;
                     count=0;
 
@@ -572,8 +696,6 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     protected void onStart() {
         super.onStart();
 
-        //getLocation();
-
         View viewSnackbar = findViewById(android.R.id.content);
         String nameNew;
         if (SaveSharedPref.getToken(HomeActivity.this).length()==0) {
@@ -598,6 +720,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             photoUri = SaveSharedPref.getPhotoUri(getApplicationContext());
             userId = SaveSharedPref.getUserId(getApplicationContext());
         }*/
+        storageReference = FirebaseStorage.getInstance().getReference();
     }
 
     public void openImageChooser() {
@@ -622,6 +745,10 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onLocationChanged(Location location) {
+        latitude = location.getLatitude();
+        longitude = location.getLongitude();
+
+        Log.d(TAG, "location123: " + latitude+" longitude: "+longitude);
     }
 
     @Override
@@ -735,7 +862,16 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                     File imageSavedFile = saveFileToStorage("IMG_" + date + ".png", bitmap1);
                     Log.d(TAG, "filePath: "+imageSavedFile);
-                    Uri uri = Uri.fromFile(imageSavedFile);
+                    logger.log("filePath: "+imageSavedFile);
+                    Uri uri;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        uri = FileProvider.getUriForFile(
+                                HomeActivity.this,
+                                HomeActivity.this.getApplicationContext().getPackageName()+".provider",
+                                imageSavedFile);
+                    } else {
+                        uri = Uri.fromFile(imageSavedFile);
+                    }
 
                     showPhotoDialog(uri);
                 }
@@ -750,6 +886,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         showVideoDialog();
                     } else {
                         Toast.makeText(this, "video file greater than 5MB", Toast.LENGTH_SHORT).show();
+                        logger.log("video file greater than 5MB");
                     }
                 }
                 break;
@@ -761,6 +898,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         pathImgGallery = getPath(HomeActivity.this, selectedImageUri);
                     } catch (Exception ex) {
                         ex.printStackTrace();
+                        FirebaseCrash.log(ex.toString());
                     }
 
                     showSelectedImageDialog(selectedImageUri);
@@ -776,6 +914,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         System.out.println(pathVideoGallery);
                     } catch (Exception ex) {
                         ex.printStackTrace();
+                        FirebaseCrash.log(ex.toString());
                     }
 
                     showSelectedVideoDialog();
@@ -802,10 +941,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             MediaStore.Images.Media.insertImage
                     (getContentResolver(), bitmap, filePath.getPath(), fileName);
             Log.d(TAG, "File was successfully saved..");
+            logger.log("File was successfully saved..");
         } catch (FileNotFoundException fileNotFound) {
             Log.d(TAG, "File wasn't found...");
+            logger.log("File wasn't found...");
+            FirebaseCrash.log("File not found..");
         } catch (Exception e) {
             e.printStackTrace();
+            FirebaseCrash.log(e.toString());
         }
 
         return filePath;
@@ -919,6 +1062,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         final ImageView videoView = (ImageView) dialogView.findViewById(R.id.imgPhoto);
 
         Log.d(TAG, "File name: "+fileName);
+        logger.log("File name: "+fileName);
 
         Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(fileName, MediaStore.Images.Thumbnails.MINI_KIND);
         videoView.setImageBitmap(thumbnail);
@@ -928,6 +1072,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             public void onClick(DialogInterface dialog, int which) {
                 strCaption = txtCaption.getText().toString();
                 Log.d(TAG, "caption: " + strCaption);
+                logger.log("caption: " + strCaption);
 
                 File sdcard = new File(
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
@@ -963,6 +1108,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     .SOFT_INPUT_ADJUST_RESIZE);
         } catch (NullPointerException e) {
             e.printStackTrace();
+            FirebaseCrash.log(e.toString());
         }
         alertDialog.show();
     }
@@ -971,19 +1117,37 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         final String timestamp = new SimpleDateFormat("yyyyMMddHHmmss")
                 .format(new Date());
         final String strCapt = caption;
+        final Uri fileVideo;
 
-        Uri fileVideo = Uri.fromFile(file);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            fileVideo = FileProvider.getUriForFile(
+                    HomeActivity.this,
+                    HomeActivity.this.getApplicationContext().getPackageName()+".provider",
+                    file);
+        } else {
+            fileVideo = Uri.fromFile(file);
+        }
+
         File sdcard = new File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                 VIDEO_DIR_NAME);
         thumbnailName = sdcard.getPath() + File.separator
                 + "VID_" + System.currentTimeMillis() + ".mp4";
-        Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(fileName,
+        final Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(fileName,
                 MediaStore.Images.Thumbnails.MINI_KIND);
         File fileThumb = saveThumbnail("VID_" + System.currentTimeMillis()+".png"
                 , sdcard
                 , thumbnail);
-        final Uri thumbnailUri = Uri.fromFile(fileThumb);
+
+        final Uri thumbnailUri;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            thumbnailUri = FileProvider.getUriForFile(
+                    HomeActivity.this,
+                    HomeActivity.this.getApplicationContext().getPackageName()+".provider",
+                    fileThumb);
+        } else {
+            thumbnailUri = Uri.fromFile(fileThumb);
+        }
 
         StorageReference videoRef = storageReference.child("IRecall")
                 .child(fileVideo.getLastPathSegment());
@@ -995,6 +1159,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             @Override
             public void onFailure(@NonNull Exception e) {
                 Log.d(TAG, "Error while uploading the video from gallery");
+                FirebaseCrash.log(e.toString());
             }
         }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
             @Override
@@ -1002,15 +1167,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 final String date = new SimpleDateFormat("yyyyMMddHHmmss")
                         .format(new Date());
                 Log.d(TAG, "Video uploaded successfully");
+                logger.log("Video uploaded successfully");
                 UploadTask thumbUpload = thumbRef.putFile(thumbnailUri);
                 thumbUpload.addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
                     @Override
                     public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                         Log.d(TAG, "Name of Thumbnail: "+thumbnailName);
-                        addDbValues("VID_" + timestamp + ".mp4"/*fileName*/, strCapt,
+                        logger.log("Name of Thumbnail: "+thumbnailName);
+                        addDbValues(fileVideo.getLastPathSegment(), strCapt,
                                 Double.parseDouble(latitudeAlbum),
                                 Double.parseDouble(longitudeAlbum), "V", date,
-                                thumbnailName);
+                                thumbnailName, "VIDEO");
                         Toast.makeText(HomeActivity.this,
                                 "Video uploaded successfully",
                                 Toast.LENGTH_SHORT).show();
@@ -1019,6 +1186,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     @Override
                     public void onFailure(@NonNull Exception e) {
                         Log.d(TAG, "Error while uploading the thumbnail from gallery");
+                        FirebaseCrash.log(e.toString());
                     }
                 });
             }
@@ -1037,18 +1205,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
         file = new File(sdcard, filename);
         try {
-            /*Bitmap bitmap = BitmapFactory.decodeFile(file.getName());
-
-            */
             stream = new FileOutputStream(file);
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
             stream.flush();
             stream.close();
         } catch (Exception ex) {
             ex.printStackTrace();
+            FirebaseCrash.log(ex.toString());
         }
 
         Log.d("file", "" + file);
+        logger.log("file" + file);
         thumbnailName = filename;
         return file;
     }
@@ -1070,6 +1237,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             public void onClick(DialogInterface dialog, int which) {
                 strCaption = txtCaption.getText().toString();
                 Log.d(TAG, "caption: " + strCaption);
+                logger.log("caption: " + strCaption);
 
                 uploadGalleryImageToFirebase(pathImgGallery, strCaption);
 
@@ -1092,12 +1260,21 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     .SOFT_INPUT_ADJUST_RESIZE);
         } catch (NullPointerException e) {
             e.printStackTrace();
+            FirebaseCrash.log(e.toString());
         }
         alertDialog.show();
     }
 
     public void uploadGalleryImageToFirebase(String galleryImage, final String caption) {
-        Uri file = Uri.fromFile(new File(galleryImage));
+        Uri file;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            file = FileProvider.getUriForFile(
+                    HomeActivity.this,
+                    HomeActivity.this.getApplicationContext().getPackageName()+".provider",
+                    new File(galleryImage));
+        } else {
+            file = Uri.fromFile(new File(galleryImage));
+        }
         final String filenm = file.getLastPathSegment();
         final String date = new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH)
                 .format(new Date());
@@ -1109,17 +1286,20 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             @Override
             public void onFailure(@NonNull Exception e) {
                 Log.d(TAG, "Error while uploading the image from gallery");
+                FirebaseCrash.log(e.toString());
             }
         }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                 Log.d(TAG, "Uploading image from gallery successful");
+                logger.log("Uploading image from gallery successful");
                 addDbValues(filenm, caption,
                         Double.parseDouble(latitudeAlbum),
-                        Double.parseDouble(longitudeAlbum), "I", date, "");
+                        Double.parseDouble(longitudeAlbum), "I", date, "", "IMAGE");
                 Toast.makeText(HomeActivity.this,
                         "Gallery image successfully uploaded",
                         Toast.LENGTH_SHORT).show();
+                revMap.clear();
             }
         });
     }
@@ -1143,6 +1323,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             public void onClick(DialogInterface dialog, int which) {
                 strCaption = txtCaption.getText().toString();
                 Log.d(TAG, "caption: " + strCaption);
+                logger.log("caption: " + strCaption);
 
                 uploadGalleryVideoToFirebase(pathVideoGallery, strCaption);
 
@@ -1165,12 +1346,21 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     .SOFT_INPUT_ADJUST_RESIZE);
         } catch (NullPointerException e) {
             e.printStackTrace();
+            FirebaseCrash.log(e.toString());
         }
         alertDialog.show();
     }
 
     public void uploadGalleryVideoToFirebase(String galleryVideo, final String caption) {
-        Uri file = Uri.fromFile(new File(galleryVideo));
+        Uri file;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            file = FileProvider.getUriForFile(
+                    HomeActivity.this,
+                    HomeActivity.this.getApplicationContext().getPackageName()+".provider",
+                    new File(galleryVideo));
+        } else {
+            file = Uri.fromFile(new File(galleryVideo));
+        }
         final String filenm = file.getLastPathSegment();
         File sdcard = new File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
@@ -1182,7 +1372,15 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         File fileThumb = saveThumbnail(filenm.replace(".mp4", ".png"),
                 sdcard,
                 thumbnail);
-        final Uri thumbnailUri = Uri.fromFile(fileThumb);
+        final Uri thumbnailUri;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            thumbnailUri = FileProvider.getUriForFile(
+                    HomeActivity.this,
+                    HomeActivity.this.getApplicationContext().getPackageName()+".provider",
+                    fileThumb);
+        } else {
+            thumbnailUri = Uri.fromFile(fileThumb);
+        }
         StorageReference galleryRef = storageReference.child("IRecall")
                 .child(file.getLastPathSegment());
         final StorageReference thumbRef = storageReference.child("Thumbnails")
@@ -1194,11 +1392,13 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             @Override
             public void onFailure(@NonNull Exception e) {
                 Log.d(TAG, "Error while uploading the video from gallery");
+                FirebaseCrash.log(e.toString());
             }
         }).addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                 Log.d(TAG, "Video from gallery uploaded successfully.");
+                logger.log("Video from gallery uploaded successfully.");
 
                 UploadTask thumbUpload = thumbRef.putFile(thumbnailUri);
                 thumbUpload.addOnSuccessListener(HomeActivity.this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
@@ -1207,15 +1407,17 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         addDbValues(filenm, caption,
                                 Double.parseDouble(latitudeAlbum),
                                 Double.parseDouble(longitudeAlbum), "V", date,
-                                thumbnailName);
+                                thumbnailName, "VIDEO");
                         Toast.makeText(HomeActivity.this,
                                 "Gallery video successfully uploaded",
                                 Toast.LENGTH_SHORT).show();
+                        revMap.clear();
                     }
                 }).addOnFailureListener(HomeActivity.this, new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
                         Log.d(TAG, "Error while uploading the thumbnail from gallery");
+                        FirebaseCrash.log(e.toString());
                     }
                 });
             }
@@ -1230,6 +1432,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         if (!sdcard.exists()) {
             if (!sdcard.mkdirs()) {
                 Log.d(VIDEO_DIR_NAME, "Oops! Failed create "
+                        + VIDEO_DIR_NAME + " directory");
+                logger.log("Oops! Failed create "
                         + VIDEO_DIR_NAME + " directory");
                 return null;
             }
@@ -1249,15 +1453,28 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public Uri getOutputMediaFileUri(int type) {
-        return Uri.fromFile(getOutputMediaFile(type));
+        Uri getOutPutFunction;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            getOutPutFunction = FileProvider.getUriForFile(
+                    HomeActivity.this,
+                    HomeActivity.this.getApplicationContext().getPackageName()+".provider",
+                    getOutputMediaFile(type));
+        } else {
+            getOutPutFunction = Uri.fromFile(getOutputMediaFile(type));
+        }
+
+        return getOutPutFunction;
     }
 
     private void addDbValues(String filename, String caption, double latitude, double longitude,
-                           String mediaIdentify, String date, String thumbnailName) {
+                           String mediaIdentify, String date, String thumbnailName,
+                             String mediaType) {
         Random random = new Random();
 
         Log.d(TAG, "Album123456: " + albumid);
         Log.d(TAG, "lat " + latitude + " long: " + longitude);
+        logger.log("Album123456: " + albumid + "lat " + latitude
+                + " long: " + longitude);
 
         Map<String, String> map = new HashMap<>();
 
@@ -1274,6 +1491,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         map.put("Longitude", Double.toString(longitude));
         map.put("Date", date);
         map.put("Thumbnail", thumbnailName);
+        map.put("MediaType", mediaType);
 
         firebase.push().setValue(map);
     }
@@ -1299,6 +1517,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     public void onClick(DialogInterface dialog, int which) {
                         strCaption = txtCaption.getText().toString();
                         Log.d(TAG, "caption: " + strCaption);
+                        logger.log("caption: " + strCaption);
 
                         uploadImageToFirebase(photoImg, strCaption);
 
@@ -1319,6 +1538,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     .SOFT_INPUT_ADJUST_RESIZE);
         } catch (NullPointerException e) {
             e.printStackTrace();
+            FirebaseCrash.log(e.toString());
         }
         alertDialog.show();
     }
@@ -1358,9 +1578,11 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                         .format(new Date());
                 addDbValues("IMG_" + timestamp + ".png", strCapt,
                         Double.parseDouble(latitudeAlbum),
-                        Double.parseDouble(longitudeAlbum), "I", date, "");
+                        Double.parseDouble(longitudeAlbum), "I", date, "", "IMAGE");
                 downloadUri = taskSnapshot.getDownloadUrl();
                 Log.d(TAG, "Uri: " + downloadUri);
+                logger.log("Uri: " + downloadUri);
+                
             }
         });
     }
@@ -1381,6 +1603,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                 double longi = Double.parseDouble(map.get("Longitude").toString());
 
                 Log.d(TAG, "values-" + " latitude: " + lat + " longitude: " + longi);
+                logger.log("values-" + " latitude: " + lat + " longitude: " + longi);
                 String album = calcDistance(Double.parseDouble(latitudeAlbum),
                         Double.parseDouble(longitudeAlbum), lat, longi);
                 Random random = new Random();
@@ -1390,6 +1613,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     if (album.equalsIgnoreCase("same")) {
                         albumid = map.get("AlbumId").toString();
                         Log.d(TAG,"album id:: "+ albumid);
+                        logger.log("album id:: "+ albumid);
                         longitudeAlbum = map.get("Longitude").toString();
                         latitudeAlbum = map.get("Latitude").toString();
                     } else {
@@ -1403,6 +1627,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
                     latitudeAlbum = Double.toString(latitude);
                 }
                 Log.d(TAG, "lat abc: "+latitudeAlbum+" long abc: "
+                +longitudeAlbum);
+                logger.log("lat abc: "+latitudeAlbum+" long abc: "
                 +longitudeAlbum);
             }
 
@@ -1428,6 +1654,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         });
 
         Log.d(TAG,"album id1 "+ albumid);
+        logger.log("album id1 "+ albumid);
     }
 
     private String calcDistance(double lat1, double lon1, double lat2, double lon2) {
@@ -1444,6 +1671,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
         dist = dist * 1.609344;
 
         Log.d(TAG, "Distance -> " + dist);
+        logger.log("Distance -> " + dist);
 
         String albumid;
         if (dist < 1) {
@@ -1466,6 +1694,7 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public void onConnectionSuspended(int i) {
         Log.d(TAG, "GoogleApiClient connection suspended");
+        logger.log("GoogleApiClient connection suspended");
     }
 
     @Override
@@ -1480,12 +1709,14 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
             connectionResult.startResolutionForResult(this, REQUEST_CODE_RESOLUTION);
         } catch (Exception ex) {
             Log.e("Drive Config", ex.getMessage());
+            FirebaseCrash.log(ex.toString());
         }
     }
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         Log.d(TAG, "Connected");
+        logger.log("Connected");
     }
 
     @Override
@@ -1533,7 +1764,8 @@ public class HomeActivity extends AppCompatActivity implements NavigationView.On
 
                 @Override
                 public void onFailure(@NonNull Status status) {
-                        Log.d(TAG, "Logout unsuccessful");
+                    Log.d(TAG, "Logout unsuccessful");
+                    logger.log("Logout unsuccessful");
             }
         });
     }

@@ -23,6 +23,7 @@ import com.bumptech.glide.request.target.Target;
 
 public class photoView extends AppCompatActivity {
     String mediaUrl;
+    String flavorName;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -40,12 +41,19 @@ public class photoView extends AppCompatActivity {
 
         Intent intent = getIntent();
         mediaUrl = intent.getStringExtra("media");
+        flavorName = intent.getStringExtra("flavorName");
 
         if (mediaUrl.contains(".mp4")) {
             fullScreenImage.setVisibility(View.GONE);
             videoView.setVisibility(View.VISIBLE);
 
-            Uri uri = Uri.parse("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + mediaUrl + "?alt=media&token=1");
+            Uri uri = null;
+
+            if (getString(R.string.flavor_name).equals("development")) {
+                uri = Uri.parse("https://firebasestorage.googleapis.com/v0/b/irecall-49ac4.appspot.com/o/IRecall%2F" + mediaUrl + "?alt=media&token=1");
+            } else {
+                uri = Uri.parse("https://firebasestorage.googleapis.com/v0/b/irecall-production.appspot.com/o/IRecall%2F" + mediaUrl + "?alt=media&token=1");
+            }
             videoView.setVideoURI(uri);
             videoView.setMediaController(new MediaController(this));
             videoView.requestFocus();
@@ -54,28 +62,57 @@ public class photoView extends AppCompatActivity {
             videoView.setVisibility(View.GONE);
             fullScreenImage.setVisibility(View.VISIBLE);
 
-            Glide.with(photoView.this)
-                    .load("https://firebasestorage.googleapis.com/v0/b/irecall-4dcd0.appspot.com/o/IRecall%2F" + mediaUrl + "?alt=media&token=1")
-                    .fitCenter()
-                    .listener(new RequestListener<String, GlideDrawable>() {
-                        @Override
-                        public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
-                            e.printStackTrace();
+            if (getString(R.string.flavor_name).equals("development")) {
+                Glide.with(photoView.this)
+                        .load("https://firebasestorage.googleapis.com/v0/b/irecall-49ac4.appspot.com/o/IRecall%2F" + mediaUrl + "?alt=media&token=1")
+                        .fitCenter()
+                        .listener(new RequestListener<String, GlideDrawable>() {
+                            @Override
+                            public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                                e.printStackTrace();
 
-                            return false;
-                        }
-
-                        @Override
-                        public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
-                            if (!isFromMemoryCache) {
-                                resource.start();
+                                return false;
                             }
 
-                            return false;
-                        }
-                    })
-                    .into(fullScreenImage);
+                            @Override
+                            public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                                if (!isFromMemoryCache) {
+                                    resource.start();
+                                }
+
+                                return false;
+                            }
+                        })
+                        .into(fullScreenImage);
+            } else {
+                Glide.with(photoView.this)
+                        .load("https://firebasestorage.googleapis.com/v0/b/irecall-production.appspot.com/o/IRecall%2F" + mediaUrl + "?alt=media&token=1")
+                        .fitCenter()
+                        .listener(new RequestListener<String, GlideDrawable>() {
+                            @Override
+                            public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                                e.printStackTrace();
+
+                                return false;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                                if (!isFromMemoryCache) {
+                                    resource.start();
+                                }
+
+                                return false;
+                            }
+                        })
+                        .into(fullScreenImage);
+            }
         }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
     }
 
     @Override
